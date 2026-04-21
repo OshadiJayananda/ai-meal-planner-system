@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Use CrewAI-native Ollama configuration to satisfy Agent.llm validation.
 llm = LLM(model="ollama/llama3", base_url="http://localhost:11434")
+#  ollama run phi3
 
 # 1. Create Coordinator Agent
 coordinator_agent = Agent(
