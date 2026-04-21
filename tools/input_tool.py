@@ -1,5 +1,5 @@
-"""Dummy input tool."""
-
 
 def get_user_input() -> str:
-    return "I want a weight loss meal plan using chicken and eggs"
+    goal = input("What's your dietary goal (e.g., weight loss, muscle gain)? ")
+    ingredients = input("Preferred ingredients (comma-separated): ")
+    return f"I want a {goal} meal plan using {ingredients}"

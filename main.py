@@ -24,13 +24,18 @@ def run_dummy_system() -> str:
     state.goal = parsed["goal"]
     state.ingredients = parsed["ingredients"]
 
+    print("> Meal Agent: Suggest meals...")
     state.meals = meal_agent.run(parsed)
+    
+    print("> Nutrition Agent: Calculating...")
     meals_with_nutrition = nutrition_agent.run(state.meals)
 
+    print("> Output Agent: Formatting...")
     base_output = output_agent.run(meals_with_nutrition)
     total_calories = estimate_total_calories(meals_with_nutrition)
 
     state.final_output = add_footer(base_output, total_calories)
+    print("\nFinal Plan:")
     return state.final_output
 
 
