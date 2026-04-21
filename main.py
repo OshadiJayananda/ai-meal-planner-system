@@ -23,6 +23,11 @@ def run_dummy_system() -> str:
 
     state.goal = parsed["goal"]
     state.ingredients = parsed["ingredients"]
+    state.avoid_ingredients = parsed["avoid_ingredients"]
+    state.target_calories = parsed["target_calories"]
+    state.diet_type = parsed["diet_type"]
+    steps = parsed["steps"]
+    state.steps = steps
 
     print("> Meal Agent: Suggest meals...")
     state.meals = meal_agent.run(parsed)
