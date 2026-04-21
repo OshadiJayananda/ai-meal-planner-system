@@ -1,8 +1,12 @@
 """Coordinator agent using CrewAI."""
 
 import json
+import logging
 
 from crewai import Agent, Crew, LLM, Task
+
+
+logger = logging.getLogger(__name__)
 
 # Use CrewAI-native Ollama configuration to satisfy Agent.llm validation.
 llm = LLM(model="ollama/llama3", base_url="http://localhost:11434")
@@ -24,6 +28,8 @@ class CoordinatorAgent:
         self.agent = coordinator_agent
 
     def run(self, user_input: str) -> dict:
+        logger.info("Coordinator received user request")
+
         # 2. Create Coordinator Task
         task = Task(
             description=f"""
@@ -57,6 +63,7 @@ class CoordinatorAgent:
 
         # Crew output type may vary by version; prefer `raw` when available.
         response_text = str(getattr(result, "raw", result))
+        logger.debug("Coordinator raw response: %s", response_text)
 
         try:
             parsed = json.loads(response_text)
@@ -66,7 +73,7 @@ class CoordinatorAgent:
                 end_index = response_text.rindex("}") + 1
                 parsed = json.loads(response_text[start_index:end_index])
             except Exception:
-                print("Failed to parse LLM output")
+                logger.exception("Failed to parse LLM output; using fallback values")
                 parsed = {
                     "goal": "balanced",
                     "ingredients": [],

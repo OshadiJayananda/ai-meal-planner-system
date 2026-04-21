@@ -1,5 +1,7 @@
 """Dummy entry point for meal_planner_mas."""
 
+import logging
+
 from agents.coordinator import CoordinatorAgent
 from agents.meal_agent import MealAgent
 from agents.nutrition_agent import NutritionAgent
@@ -10,7 +12,19 @@ from tools.input_tool import get_user_input
 from tools.nutrition_tool import estimate_total_calories
 
 
+logger = logging.getLogger(__name__)
+
+
+def setup_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
+
 def run_dummy_system() -> str:
+    setup_logging()
+
     state = PlannerState()
 
     coordinator = CoordinatorAgent()
@@ -29,17 +43,18 @@ def run_dummy_system() -> str:
     steps = parsed["steps"]
     state.steps = steps
 
-    print("> Meal Agent: Suggest meals...")
+    logger.info("> Meal Agent: Suggest meals...")
     state.meals = meal_agent.run(parsed)
     
-    print("> Nutrition Agent: Calculating...")
+    logger.info("> Nutrition Agent: Calculating calories...")
     meals_with_nutrition = nutrition_agent.run(state.meals)
 
-    print("> Output Agent: Formatting...")
+    logger.info("> Output Agent: Formatting final plan...")
     base_output = output_agent.run(meals_with_nutrition)
     total_calories = estimate_total_calories(meals_with_nutrition)
 
     state.final_output = add_footer(base_output, total_calories)
+    logger.info("> Meal planning pipeline completed successfully.")
     print("\nFinal Plan:")
     return state.final_output
 

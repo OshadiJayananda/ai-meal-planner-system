@@ -1,0 +1,10 @@
+🟢 1. Simple + clear
+I want a weight loss meal plan using rice and chicken
+🟡 2. With restrictions
+Give me a muscle gain meal plan with eggs and fish but no pork
+🟠 3. With calories + avoid + multiple ingredients
+I need a weight loss plan using rice, vegetables and chicken, avoid beef, around 1300 calories
+🔵 4. Vegetarian + constraints
+Create a vegetarian meal plan for weight loss using rice and beans, no eggs, about 1200 kcal
+🔴 5. Complex real-world input (best test)
+I want a high protein weight loss meal plan using chicken, rice and eggs, avoid fried food and pork,
