@@ -1,0 +1,11 @@
+"""Dummy output formatter agent."""
+
+
+class OutputAgent:
+    """Formats placeholder output."""
+
+    def run(self, meals_with_nutrition: list) -> str:
+        lines = ["Dummy Meal Plan"]
+        for meal in meals_with_nutrition:
+            lines.append(f"- {meal['type']}: {meal['name']} ({meal['calories']} kcal)")
+        return "\n".join(lines)
