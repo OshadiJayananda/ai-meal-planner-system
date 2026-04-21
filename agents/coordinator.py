@@ -42,6 +42,10 @@ class CoordinatorAgent:
             - target_calories (number if mentioned)
             - diet_type (vegetarian / vegan / none)
 
+            Important rules:
+            - If target calories are not explicitly mentioned, return 0 for target_calories.
+            - Do NOT assume, infer, or guess values that are not explicitly provided.
+
             Also decide workflow steps.
 
             Return ONLY valid JSON:
@@ -78,7 +82,7 @@ class CoordinatorAgent:
                     "goal": "balanced",
                     "ingredients": [],
                     "avoid_ingredients": [],
-                    "target_calories": None,
+                    "target_calories": 0,
                     "diet_type": "none",
                     "steps": ["meal_generation", "nutrition_analysis", "format_output"]
                 }
