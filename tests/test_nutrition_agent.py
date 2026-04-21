@@ -1,6 +1,6 @@
 """
 Evaluation Script for Nutrition Agent
-Author: [YOUR NAME]
+Author: Oshadi Jayananda 
 """
 
 import unittest

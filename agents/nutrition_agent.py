@@ -1,6 +1,6 @@
 """
 Nutrition Agent for Meal Planner System
-Author: [YOUR NAME]
+Author: Oshadi Jayananda
 """
 
 import logging

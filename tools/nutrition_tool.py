@@ -1,7 +1,7 @@
 """
 Custom Tool for Nutrition Agent
-Author: [YOUR NAME]
-Date: [DATE]
+Author: Oshadi Jayananda
+Date: 21.04.2026
 """
 
 from typing import Dict, List, Any, Optional
