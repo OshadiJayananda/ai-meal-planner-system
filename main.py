@@ -11,6 +11,9 @@ from state import PlannerState
 from tools.format_tool import add_footer
 from tools.input_tool import get_user_input
 from tools.nutrition_tool import estimate_total_calories  # YOUR tool
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
 
 logger = logging.getLogger(__name__)
@@ -22,8 +25,8 @@ def setup_logging() -> None:
         level=logging.INFO,
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         handlers=[
-            logging.FileHandler("meal_planner.log"),  # Log to file
-            logging.StreamHandler()  # Also print to console
+            logging.FileHandler("meal_planner.log", encoding='utf-8'),  # Log to file
+            logging.StreamHandler(sys.stdout)  # Fixed: Use reconfigured stdout
         ]
     )
 
