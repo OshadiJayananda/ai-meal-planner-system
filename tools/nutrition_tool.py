@@ -7,8 +7,41 @@ Date: 21.04.2026
 from typing import Dict, List, Any, Optional
 import re
 import logging
+import sqlite3
+import os
 
 logger = logging.getLogger(__name__)
+
+
+def _query_nutrition_db() -> Dict[str, Dict[str, Any]]:
+    """Helper to fetch all nutrition data from SQLite."""
+    db_path = "nutrition.db"
+    
+    # Fallback if DB doesn't exist (safety)
+    if not os.path.exists(db_path):
+        logger.warning(f"Database {db_path} not found. Returning empty dictionary.")
+        return {}
+        
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT ingredient, calories, protein, carbs, fat, serving FROM nutrition")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return {
+            row[0]: {
+                "calories": row[1],
+                "protein": row[2],
+                "carbs": row[3],
+                "fat": row[4],
+                "serving": row[5]
+            }
+            for row in rows
+        }
+    except Exception as e:
+        logger.error(f"Error querying SQLite database: {e}")
+        return {}
 
 
 def estimate_nutrition(meal_description: str) -> Dict[str, Any]:
@@ -40,48 +73,10 @@ def estimate_nutrition(meal_description: str) -> Dict[str, Any]:
     meal_lower = meal_description.lower()
     
     # ============================================
-    # NUTRITION DATABASE (per serving)
+    # NUTRITION DATABASE (Fetched from SQLite)
     # ============================================
     
-    nutrition_db = {
-        # Proteins (per typical serving)
-        "chicken breast": {"calories": 165, "protein": 31, "carbs": 0, "fat": 3.6, "serving": "100g"},
-        "chicken": {"calories": 165, "protein": 31, "carbs": 0, "fat": 3.6, "serving": "100g"},
-        "egg": {"calories": 70, "protein": 6, "carbs": 0.5, "fat": 5, "serving": "1 large"},
-        "eggs": {"calories": 70, "protein": 6, "carbs": 0.5, "fat": 5, "serving": "1 large"},
-        "beef": {"calories": 250, "protein": 26, "carbs": 0, "fat": 17, "serving": "100g"},
-        "fish": {"calories": 206, "protein": 22, "carbs": 0, "fat": 12, "serving": "100g"},
-        "salmon": {"calories": 208, "protein": 20, "carbs": 0, "fat": 13, "serving": "100g"},
-        "tofu": {"calories": 76, "protein": 8, "carbs": 2, "fat": 4.8, "serving": "100g"},
-        
-        # Carbs (per typical serving)
-        "rice": {"calories": 130, "protein": 2.7, "carbs": 28, "fat": 0.3, "serving": "100g"},
-        "bread": {"calories": 79, "protein": 2.7, "carbs": 15, "fat": 1, "serving": "1 slice"},  # FIXED: reduced
-        "toast": {"calories": 79, "protein": 2.7, "carbs": 15, "fat": 1, "serving": "1 slice"},
-        "pasta": {"calories": 131, "protein": 5, "carbs": 25, "fat": 1.1, "serving": "100g"},
-        "potato": {"calories": 77, "protein": 2, "carbs": 17, "fat": 0.1, "serving": "100g"},
-        "oatmeal": {"calories": 68, "protein": 2.4, "carbs": 12, "fat": 1.4, "serving": "100g"},
-        "quinoa": {"calories": 120, "protein": 4.4, "carbs": 21, "fat": 1.9, "serving": "100g"},
-        
-        # Vegetables (per serving)
-        "broccoli": {"calories": 34, "protein": 2.8, "carbs": 7, "fat": 0.4, "serving": "100g"},
-        "spinach": {"calories": 23, "protein": 2.9, "carbs": 3.6, "fat": 0.4, "serving": "100g"},
-        "salad": {"calories": 15, "protein": 1, "carbs": 3, "fat": 0.1, "serving": "100g"},
-        "vegetables": {"calories": 30, "protein": 2, "carbs": 5, "fat": 0.5, "serving": "100g"},
-        
-        # Fats/Oils (per tbsp)
-        "olive oil": {"calories": 119, "protein": 0, "carbs": 0, "fat": 13.5, "serving": "1 tbsp"},
-        "butter": {"calories": 102, "protein": 0.1, "carbs": 0, "fat": 11.5, "serving": "1 tbsp"},
-        
-        # Fruits
-        "banana": {"calories": 105, "protein": 1.3, "carbs": 27, "fat": 0.4, "serving": "1 medium"},
-        "apple": {"calories": 95, "protein": 0.5, "carbs": 25, "fat": 0.3, "serving": "1 medium"},
-        
-        # Dairy
-        "milk": {"calories": 42, "protein": 3.4, "carbs": 5, "fat": 1, "serving": "100ml"},
-        "cheese": {"calories": 402, "protein": 25, "carbs": 1.3, "fat": 33, "serving": "100g"},
-        "yogurt": {"calories": 59, "protein": 10, "carbs": 3.6, "fat": 0.4, "serving": "100g"},
-    }
+    nutrition_db = _query_nutrition_db()
     
     # ============================================
     # CALCULATION LOGIC - FIXED
