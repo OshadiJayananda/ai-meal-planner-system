@@ -71,6 +71,12 @@ Potential extensions:
 
 This repository represents a baseline, working multi-agent meal planner and serves as a foundation for further feature development.
 
+## Checklist
+
+Track assignment completion here:
+
+- [CHECKLIST.md](CHECKLIST.md)
+
 ## License
 
 For academic and demonstration use unless replaced by a project-specific license.
