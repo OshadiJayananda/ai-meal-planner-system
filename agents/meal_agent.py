@@ -47,7 +47,7 @@ class MealAgent:
         self.client = Client(host=host) if Client is not None else None
         self.agent = meal_generation_agent
 
-    def run(self, context: dict) -> list:
+    def run(self, context: dict, age: int, current_weight: float) -> list:
         """
         Input: parsed user context dict.
         Output: a list of meal dicts with required fields for downstream agents.
@@ -55,7 +55,7 @@ class MealAgent:
         logger.info("Generating meal plan with Ollama model '%s'", self.model)
 
         fallback_meals = build_fallback_meals(context)
-        response_text = self._generate_with_crewai(context)
+        response_text = self._generate_with_crewai(context, age, current_weight)
 
         if not response_text:
             response_text = self._generate_with_ollama_client(context)
@@ -71,7 +71,7 @@ class MealAgent:
         logger.warning("Meal response was invalid; using fallback meals")
         return fallback_meals
 
-    def _generate_with_crewai(self, context: Dict[str, Any]) -> str:
+    def _generate_with_crewai(self, context: Dict[str, Any], age: int, current_weight: float) -> str:
         if self.agent is None or Task is None or Crew is None:
             return ""
 

@@ -5,11 +5,11 @@ import logging
 import re
 
 from crewai import Agent, Crew, LLM, Task
+from tools.coordinator_tool import DEFAULT_STEPS, normalize_parsed_data, select_workflow_steps
 
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_STEPS = ["meal_generation", "nutrition_analysis", "format_output"]
 DEFAULT_COORDINATOR_RESPONSE = {
     "goal": "balanced",
     "ingredients": [],
@@ -55,14 +55,35 @@ class CoordinatorAgent:
         return cleaned_text.strip()
 
     @staticmethod
-    def _extract_json_text(response_text: str) -> str:
+    def _extract_json_object_candidates(response_text: str) -> list[str]:
         cleaned_text = CoordinatorAgent._strip_code_fences(response_text)
-        json_match = JSON_OBJECT_PATTERN.search(cleaned_text)
+        candidates: list[str] = [cleaned_text]
+        decoder = json.JSONDecoder()
 
-        if json_match:
-            return json_match.group(0)
+        for idx, char in enumerate(cleaned_text):
+            if char != "{":
+                continue
 
-        return cleaned_text
+            try:
+                parsed_obj, end_index = decoder.raw_decode(cleaned_text[idx:])
+            except json.JSONDecodeError:
+                continue
+
+            if isinstance(parsed_obj, dict):
+                candidates.append(cleaned_text[idx: idx + end_index])
+
+        return candidates
+
+    @staticmethod
+    def _select_best_parsed_dict(parsed_candidates: list[dict]) -> dict:
+        expected_keys = ("goal", "ingredients", "avoid_ingredients", "target_calories", "diet_type", "steps")
+
+        def score(candidate: dict) -> tuple[int, int]:
+            present_keys = sum(1 for key in expected_keys if key in candidate)
+            has_steps = 1 if isinstance(candidate.get("steps"), list) else 0
+            return has_steps, present_keys
+
+        return max(parsed_candidates, key=score)
 
     @staticmethod
     def _repair_steps_array(response_text: str) -> str:
@@ -85,32 +106,28 @@ class CoordinatorAgent:
 
     @staticmethod
     def _parse_response_text(response_text: str) -> dict:
-        candidate_text = CoordinatorAgent._extract_json_text(response_text)
-        parsed = None
+        parsed_candidates: list[dict] = []
+        text_candidates = CoordinatorAgent._extract_json_object_candidates(response_text)
 
-        for text_variant in (candidate_text, CoordinatorAgent._repair_steps_array(candidate_text)):
-            try:
-                parsed = json.loads(text_variant)
-                break
-            except json.JSONDecodeError:
-                continue
+        for candidate_text in text_candidates:
+            for text_variant in (candidate_text, CoordinatorAgent._repair_steps_array(candidate_text)):
+                try:
+                    parsed = json.loads(text_variant)
+                except json.JSONDecodeError:
+                    continue
 
-        if not isinstance(parsed, dict):
-            logger.exception("Failed to parse LLM output; using fallback values")
+                if isinstance(parsed, dict):
+                    parsed_candidates.append(parsed)
+
+        if not parsed_candidates:
+            logger.error(
+                "Failed to parse LLM output; using fallback values. Raw response excerpt: %s",
+                response_text[:250]
+            )
             return DEFAULT_COORDINATOR_RESPONSE.copy()
 
-        parsed.setdefault("goal", DEFAULT_COORDINATOR_RESPONSE["goal"])
-        parsed.setdefault("ingredients", [])
-        parsed.setdefault("avoid_ingredients", [])
-        parsed.setdefault("target_calories", 0)
-        parsed.setdefault("age", 0)
-        parsed.setdefault("current_weight", 0)
-        parsed.setdefault("diet_type", DEFAULT_COORDINATOR_RESPONSE["diet_type"])
-        parsed_steps = parsed.get("steps", [])
-        parsed["steps"] = [step for step in parsed_steps if step in DEFAULT_STEPS] or DEFAULT_STEPS.copy()
-
-        return parsed
-
+        parsed = CoordinatorAgent._select_best_parsed_dict(parsed_candidates)
+        return normalize_parsed_data(parsed)
     def run(self, user_input: str) -> dict:
         logger.info("Coordinator received user request")
 
@@ -124,35 +141,121 @@ class CoordinatorAgent:
             - ingredients (list)
             - avoid_ingredients (list)
             - target_calories (number if mentioned)
-            - age (number if mentioned)
-            - current_weight (number in kg if mentioned)
             - diet_type (vegetarian / vegan / none)
 
-            Important rules:
+            ==============================
+            IMPORTANT GENERAL RULES
+            ==============================
             - If target calories are not explicitly mentioned, return 0 for target_calories.
-            - If age is not explicitly mentioned, return 0 for age.
-            - If current weight is not explicitly mentioned, return 0 for current_weight.
             - Do NOT assume, infer, or guess values that are not explicitly provided.
+            - If a field is not mentioned, leave it empty or default.
 
-            Also decide workflow steps.
+            ==============================
+            INGREDIENT EXTRACTION RULES
+            ==============================
 
-            Return ONLY valid JSON:
+            1. If the user provides FULL MEALS, keep them as full phrases.
+            DO NOT split them into individual ingredients.
+
+            Examples:
+            - "grilled chicken salad" → ["grilled chicken salad"]
+            - "tuna sandwich" → ["tuna sandwich"]
+            - "yogurt bowl" → ["yogurt bowl"]
+
+            2. If multiple meals are separated by commas:
+            "grilled chicken salad, tuna sandwich, yogurt bowl"
+            → ["grilled chicken salad", "tuna sandwich", "yogurt bowl"]
+
+            3. Only extract individual ingredients when clearly mentioned:
+            "meal plan with rice and chicken"
+            → ["rice", "chicken"]
+
+            4. DO NOT break meal names:
+            ❌ ["grilled chicken", "salad"]
+            ✅ ["grilled chicken salad"]
+
+            5. Preserve meaningful phrases exactly as written.
+
+            ==============================
+            WORKFLOW STEP SELECTION
+            ==============================
+
+            You MUST choose ONLY from these options:
+
+            1) ["meal_generation", "nutrition_analysis", "format_output"]
+            Use when:
+            - Full meal planning is required
+            - AND nutrition analysis is needed
+            - OR calorie target is provided
+
+            2) ["meal_generation", "format_output"]
+            Use when:
+            - User wants meal planning only
+            - No nutrition or calorie analysis required
+
+            3) ["nutrition_analysis", "format_output"]
+            MUST be used when:
+            - User provides existing meals
+            - AND asks to analyze calories, nutrition, or macros
+
+            Examples:
+            - "Analyze calories of these meals: grilled chicken salad, tuna sandwich"
+            - "Calculate nutrition for my meals"
+            - "Give macro breakdown for these meals"
+
+            RULES:
+            - DO NOT use "meal_generation"
+            - DO NOT create new meals
+            - ONLY analyze given meals
+
+            4) ["meal_generation"]
+            Use for minimal requests:
+            - "just give me meal ideas"
+            - "only meals"
+            - "just meals"
+
+            ==============================
+            CRITICAL WORKFLOW RULE
+            ==============================
+
+            If the user provides meals AND asks for analysis:
+            → ALWAYS return:
+            ["nutrition_analysis", "format_output"]
+
+            ==============================
+            INGREDIENT vs MEAL RULE
+            ==============================
+
+            - If workflow is ["nutrition_analysis", "format_output"]:
+            → ingredients MUST contain FULL MEAL NAMES
+
+            - If workflow includes "meal_generation":
+            → ingredients should be raw ingredients (e.g., rice, chicken)
+
+            ==============================
+            OUTPUT FORMAT RULES
+            ==============================
+
+            - Return ONLY valid JSON
+            - Do NOT include explanations or extra text
+            - Do NOT include multiple JSON objects
+            - Return EXACTLY ONE JSON object
+
+            ==============================
+            RESPONSE FORMAT
+            ==============================
+
             {{
                 "goal": "...",
                 "ingredients": ["..."],
                 "avoid_ingredients": ["..."],
                 "target_calories": 0,
-                "age": 0,
-                "current_weight": 0,
                 "diet_type": "...",
                 "steps": ["meal_generation", "nutrition_analysis", "format_output"]
             }}
             """,
             agent=self.agent,
-            expected_output=(
-                "Valid JSON with goal, ingredients, avoid_ingredients, target_calories, "
-                "age, current_weight, diet_type, and steps fields"
-            )
+            expected_output="Valid JSON with goal, ingredients, avoid_ingredients, target_calories, diet_type, and steps fields"
         )
         
         crew = Crew(agents=[self.agent], tasks=[task], verbose=False)
@@ -161,5 +264,10 @@ class CoordinatorAgent:
         # Crew output type may vary by version; prefer `raw` when available.
         response_text = str(getattr(result, "raw", result))
         logger.debug("Coordinator raw response: %s", response_text)
+        parsed = self._parse_response_text(response_text)
+        llm_suggested_steps = parsed.get("steps", [])
+        parsed["steps"] = select_workflow_steps(user_input, parsed)
+        logger.info(f"LLM suggested steps: {llm_suggested_steps}")
+        logger.info(f"Final selected steps: {parsed['steps']}")
 
-        return self._parse_response_text(response_text)
+        return parsed

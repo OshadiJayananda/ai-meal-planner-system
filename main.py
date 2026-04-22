@@ -5,12 +5,12 @@ from typing import Any, Callable
 
 from agents.coordinator import CoordinatorAgent
 from agents.meal_agent import MealAgent
-from agents.nutrition_agent import NutritionAgent  # YOUR updated agent
+from agents.nutrition_agent import NutritionAgent
 from agents.output_agent import OutputAgent
 from state import PlannerState
 from tools.format_tool import add_footer
 from tools.input_tool import get_user_input
-from tools.nutrition_tool import estimate_total_calories  # YOUR tool
+from tools.nutrition_tool import estimate_total_calories
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
@@ -34,8 +34,8 @@ def setup_logging() -> None:
         level=logging.INFO,
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         handlers=[
-            logging.FileHandler("meal_planner.log", encoding='utf-8'),  # Log to file
-            logging.StreamHandler(sys.stdout)  # Fixed: Use reconfigured stdout
+            logging.FileHandler("meal_planner.log", encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)
         ]
     )
 
@@ -68,8 +68,14 @@ def run_meal_planner_system() -> str:
     # STEP 1: Get user input and parse with Coordinator
     # ============================================
     logger.info("📝 STEP 1: Getting user input...")
-    state.user_input = get_user_input()
-    logger.info(f"User input: {state.user_input}")
+    state.user_input, age, weight = get_user_input()
+
+    state.age = int(age) if age else 0
+    state.current_weight = int(weight) if weight else 0
+
+    logger.info(f"✓ User input: {state.user_input}")
+    logger.info(f"✓ Age: {state.age}")
+    logger.info(f"✓ Weight: {state.current_weight}")
 
     _record_trace(state, "coordinator.start", {"user_input": state.user_input})
     parsed = coordinator.run(state.user_input)
@@ -79,8 +85,6 @@ def run_meal_planner_system() -> str:
     state.ingredients = parsed.get("ingredients", [])
     state.avoid_ingredients = parsed.get("avoid_ingredients", [])
     state.target_calories = parsed.get("target_calories", 0)
-    state.age = parsed.get("age", 0)
-    state.current_weight = parsed.get("current_weight", 0)
     state.diet_type = parsed.get("diet_type", "none")
     state.steps = parsed.get("steps", []) or DEFAULT_WORKFLOW_STEPS.copy()
 
@@ -105,7 +109,7 @@ def run_meal_planner_system() -> str:
         logger.info("🍳 STEP: meal_generation started")
         _record_trace(state, "meal_generation.start", {"goal": state.goal, "ingredients": state.ingredients})
 
-        state.meals = meal_agent.run(state.parsed_request)
+        state.meals = meal_agent.run(state.parsed_request, state.age, state.current_weight)
 
         # Non-trivial branch: enforce vegetarian constraint before downstream analysis.
         if state.diet_type == "vegetarian":
@@ -127,6 +131,14 @@ def run_meal_planner_system() -> str:
 
     def execute_nutrition_analysis() -> None:
         logger.info("🧮 STEP: nutrition_analysis started")
+
+        if not state.meals and state.ingredients:
+            logger.info("🔧 Converting ingredients → meals for analysis")
+            state.meals = [
+                {"name": item, "description": f"{item} meal"}
+                for item in state.ingredients
+            ]
+
         _record_trace(state, "nutrition_analysis.start", {"meal_count": len(state.meals)})
 
         state.nutrition_result = nutrition_agent.run(state.meals)

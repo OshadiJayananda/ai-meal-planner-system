@@ -1,10 +1,48 @@
-🟢 1. Simple + clear
-I want a weight loss meal plan using rice and chicken
-🟡 2. With restrictions
-Give me a muscle gain meal plan with eggs and fish but no pork
-🟠 3. With calories + avoid + multiple ingredients
-I need a weight loss plan using rice, vegetables and chicken, avoid beef, around 1300 calories
-🔵 4. Vegetarian + constraints
-Create a vegetarian meal plan for weight loss using rice and beans, no eggs, about 1200 kcal
-🔴 5. Complex real-world input (best test)
-I want a high protein weight loss meal plan using chicken, rice and eggs, avoid fried food and pork,
+Dynamic Workflow Sample Prompts
+
+Case 1: Full pipeline
+Expected steps: ["meal_generation", "nutrition_analysis", "format_output"]
+
+1) I need a weight loss meal plan with chicken and rice around 1400 calories
+2) Create a vegetarian meal plan using beans and spinach, target 1500 kcal
+3) Give me a muscle gain meal plan with eggs and oats, about 2300 calories
+4) Plan meals with fish and potatoes, keep it near 1800 calories
+5) High-protein daily meal plan with chicken, eggs, and rice, 1700 cal max
+
+Case 2: Meal generation + formatting
+Expected steps: ["meal_generation", "format_output"]
+
+6) I want a weight loss meal plan using rice and chicken
+7) Give me a muscle gain meal plan with eggs and fish but no pork
+8) Create a vegetarian meal plan using lentils, tofu, and vegetables
+9) Build a 1-day meal plan with simple ingredients and no fried food
+10) Suggest a balanced meal plan with chicken, broccoli, and quinoa
+11) I need healthy meal ideas with potatoes and tuna, avoid beef
+
+Case 3: Nutrition analysis + formatting
+Expected steps: ["nutrition_analysis", "format_output"]
+
+12) Analyze calories of these meals: grilled chicken salad, tuna sandwich, yogurt bowl
+13) Calculate macros for these meals: oatmeal with banana, chicken stir-fry, lentil soup
+14) Give me nutrition breakdown for my meals: egg toast, rice and beans, fruit smoothie
+15) Check protein, carbs, and fat for these meals: tofu curry, quinoa salad, nuts
+16) Estimate total calories for this meal list: salmon bowl, veggie omelet, chickpea wrap
+17) Analyze nutrition of these meals and summarize daily totals
+
+Case 4: Minimal meal generation only
+Expected steps: ["meal_generation"]
+
+18) Just give me meal ideas
+19) Only meal ideas with chicken and rice
+20) Just meals for vegetarian lunch
+21) Give me meal ideas only, no extra details
+22) I only want quick dinner meal ideas
+
+Mixed and edge-case prompts
+
+23) I want meal ideas and if possible show calories
+24) Analyze calories for these meals and suggest one better option
+25) Just give me meal ideas around 1600 calories
+26) Give me meals with eggs and spinach, avoid pork and fried food
+27) Analyze these meals from yesterday and tell me if protein is enough
+28) Make a vegan meal plan for maintenance, about 1900 calories
