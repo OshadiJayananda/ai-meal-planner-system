@@ -5,12 +5,12 @@ from typing import Any, Callable
 
 from agents.coordinator import CoordinatorAgent
 from agents.meal_agent import MealAgent
-from agents.nutrition_agent import NutritionAgent  # YOUR updated agent
+from agents.nutrition_agent import NutritionAgent
 from agents.output_agent import OutputAgent
 from state import PlannerState
 from tools.format_tool import add_footer
 from tools.input_tool import get_user_input
-from tools.nutrition_tool import estimate_total_calories  # YOUR tool
+from tools.nutrition_tool import estimate_total_calories
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
@@ -34,8 +34,8 @@ def setup_logging() -> None:
         level=logging.INFO,
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         handlers=[
-            logging.FileHandler("meal_planner.log", encoding='utf-8'),  # Log to file
-            logging.StreamHandler(sys.stdout)  # Fixed: Use reconfigured stdout
+            logging.FileHandler("meal_planner.log", encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)
         ]
     )
 

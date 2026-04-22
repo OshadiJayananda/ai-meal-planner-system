@@ -118,5 +118,136 @@ class TestCoordinatorAgent(unittest.TestCase):
         self.assertIsInstance(result["target_calories"], int)
         self.assertIsInstance(result["steps"], list)
 
+    def test_workflow_case_meal_and_format_when_no_calories(self):
+        mock_response = json.dumps({
+            "goal": "maintenance",
+            "ingredients": ["chicken"],
+            "avoid_ingredients": [],
+            "target_calories": 0,
+            "diet_type": "none",
+            "steps": ["meal_generation", "nutrition_analysis", "format_output"]
+        })
+
+        mock_crew = SimpleNamespace(
+            kickoff=lambda: SimpleNamespace(raw=mock_response)
+        )
+
+        with patch("agents.coordinator.Crew", return_value=mock_crew):
+            result = self.agent.run("Give me a simple meal plan with chicken")
+
+        self.assertEqual(result["steps"], ["meal_generation", "format_output"])
+
+    def test_workflow_case_nutrition_and_format(self):
+        mock_response = json.dumps({
+            "goal": "maintenance",
+            "ingredients": [],
+            "avoid_ingredients": [],
+            "target_calories": 0,
+            "diet_type": "none",
+            "steps": []
+        })
+
+        mock_crew = SimpleNamespace(
+            kickoff=lambda: SimpleNamespace(raw=mock_response)
+        )
+
+        with patch("agents.coordinator.Crew", return_value=mock_crew):
+            result = self.agent.run("Analyze calories of these meals")
+
+        self.assertEqual(result["steps"], ["nutrition_analysis", "format_output"])
+
+    def test_workflow_case_meal_only_minimal_request(self):
+        mock_response = json.dumps({
+            "goal": "maintenance",
+            "ingredients": [],
+            "avoid_ingredients": [],
+            "target_calories": 0,
+            "diet_type": "none",
+            "steps": []
+        })
+
+        mock_crew = SimpleNamespace(
+            kickoff=lambda: SimpleNamespace(raw=mock_response)
+        )
+
+        with patch("agents.coordinator.Crew", return_value=mock_crew):
+            result = self.agent.run("Just give me meal ideas")
+
+        self.assertEqual(result["steps"], ["meal_generation"])
+
+    def test_nutrition_focused_request_overrides_llm_minimal_steps(self):
+        mock_response = json.dumps({
+            "goal": "maintenance",
+            "ingredients": ["grilled chicken", "salad", "tuna", "yogurt"],
+            "avoid_ingredients": [],
+            "target_calories": 0,
+            "diet_type": "none",
+            "steps": ["meal_generation"]
+        })
+
+        mock_crew = SimpleNamespace(
+            kickoff=lambda: SimpleNamespace(raw=mock_response)
+        )
+
+        with patch("agents.coordinator.Crew", return_value=mock_crew):
+            result = self.agent.run("Analyze calories of these meals: grilled chicken salad, tuna sandwich, yogurt bowl")
+
+        self.assertEqual(result["steps"], ["nutrition_analysis", "format_output"])
+
+    def test_parses_json_from_prose_wrapped_response(self):
+        wrapped_response = '''
+Here is the extracted user request:
+
+{
+    "goal": "",
+    "ingredients": ["grilled chicken", "salad", "tuna", "bread", "yogurt"],
+    "avoid_ingredients": [],
+    "target_calories": 0,
+    "diet_type": ""
+}
+
+Since there are no specific goal, target calories, or diet type mentioned, I will use minimal workflow:
+
+{
+    "goal": "",
+    "ingredients": ["grilled chicken", "salad", "tuna", "bread", "yogurt"],
+    "avoid_ingredients": [],
+    "target_calories": 0,
+    "diet_type": "",
+    "steps": ["meal_generation"]
+}
+'''
+
+        mock_crew = SimpleNamespace(
+            kickoff=lambda: SimpleNamespace(raw=wrapped_response)
+        )
+
+        with patch("agents.coordinator.Crew", return_value=mock_crew):
+            result = self.agent.run("Analyze calories of these meals: grilled chicken salad, tuna sandwich, yogurt bowl")
+
+        self.assertIn("grilled chicken", result["ingredients"])
+        self.assertEqual(result["steps"], ["nutrition_analysis", "format_output"])
+
+    def test_blank_goal_and_diet_type_are_normalized(self):
+        mock_response = json.dumps({
+            "goal": "",
+            "ingredients": ["grilled chicken salad", "tuna sandwich", "yogurt bowl"],
+            "avoid_ingredients": [],
+            "target_calories": 0,
+            "diet_type": "",
+            "steps": ["nutrition_analysis", "format_output"]
+        })
+
+        mock_crew = SimpleNamespace(
+            kickoff=lambda: SimpleNamespace(raw=mock_response)
+        )
+
+        with patch("agents.coordinator.Crew", return_value=mock_crew):
+            result = self.agent.run("Analyze calories of these meals: grilled chicken salad, tuna sandwich, yogurt bowl")
+
+        self.assertEqual(result["goal"], "maintenance")
+        self.assertEqual(result["diet_type"], "none")
+        self.assertEqual(result["steps"], ["nutrition_analysis", "format_output"])
+
 if __name__ == "__main__":
     unittest.main()
