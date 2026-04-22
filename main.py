@@ -15,6 +15,14 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
+from db_service import (
+    init_db,
+    create_session,
+    save_coordinator,
+    save_meals,
+    save_nutrition,
+    save_final_output
+)
 
 logger = logging.getLogger(__name__)
 DEFAULT_WORKFLOW_STEPS = ["meal_generation", "nutrition_analysis", "format_output"]
@@ -51,6 +59,7 @@ def run_meal_planner_system() -> str:
     4. Output Agent - Formats the final output
     """
     setup_logging()
+    init_db()
     logger.info("=" * 60)
     logger.info("Starting Multi-Agent Meal Planner System")
     logger.info("=" * 60)
@@ -76,6 +85,8 @@ def run_meal_planner_system() -> str:
     logger.info(f"✓ User input: {state.user_input}")
     logger.info(f"✓ Age: {state.age}")
     logger.info(f"✓ Weight: {state.current_weight}")
+
+    session_id = create_session(state.user_input, state.age, state.current_weight)
 
     _record_trace(state, "coordinator.start", {"user_input": state.user_input})
     parsed = coordinator.run(state.user_input)
@@ -105,6 +116,8 @@ def run_meal_planner_system() -> str:
     logger.info(f"✓ Ingredients: {state.ingredients}")
     logger.info(f"✓ Steps selected by coordinator: {state.steps}")
 
+    save_coordinator(session_id, parsed)
+
     def execute_meal_generation() -> None:
         logger.info("🍳 STEP: meal_generation started")
         _record_trace(state, "meal_generation.start", {"goal": state.goal, "ingredients": state.ingredients})
@@ -127,6 +140,8 @@ def run_meal_planner_system() -> str:
                 _record_trace(state, "meal_generation.branch.vegetarian_filter_fallback", {"fallback": True})
 
         logger.info(f"✓ meal_generation completed with {len(state.meals)} meals")
+
+        save_meals(session_id, state.meals)
         _record_trace(state, "meal_generation.complete", {"meal_count": len(state.meals)})
 
     def execute_nutrition_analysis() -> None:
@@ -151,6 +166,8 @@ def run_meal_planner_system() -> str:
         logger.info(f"✓ Daily protein: {daily_totals.get('total_protein_g', 0)}g")
         logger.info(f"✓ Daily carbs: {daily_totals.get('total_carbs_g', 0)}g")
         logger.info(f"✓ Daily fat: {daily_totals.get('total_fat_g', 0)}g")
+
+        save_nutrition(session_id, state.daily_totals)
 
         _record_trace(state, "nutrition_analysis.complete", daily_totals)
 
@@ -196,6 +213,8 @@ def run_meal_planner_system() -> str:
 
         state.final_output = add_footer(base_output, total_calories)
         state.final_output += "\n" + "\n".join(footer_lines[1:])
+
+        save_final_output(session_id, state.final_output)
 
         logger.info("✓ format_output completed")
         _record_trace(state, "format_output.complete", {"output_length": len(state.final_output)})
@@ -246,60 +265,7 @@ def run_meal_planner_system() -> str:
     
     return state.final_output
 
-
-def run_with_detailed_logging() -> str:
-    """
-    Alternative run function with more detailed logging for debugging.
-    Useful for testing your Nutrition Agent specifically.
-    """
-    setup_logging()
-    
-    logger.info("🐛 Running in DETAILED DEBUG mode")
-    
-    state = PlannerState()
-    
-    # Test input
-    test_input = "I want a high protein meal plan for weight loss using chicken and eggs"
-    logger.info(f"Test input: {test_input}")
-    
-    coordinator = CoordinatorAgent()
-    parsed = coordinator.run(test_input)
-    
-    meal_agent = MealAgent()
-    meals = meal_agent.run(parsed)
-    
-    # YOUR AGENT - with detailed logging
-    nutrition_agent = NutritionAgent()
-    
-    for meal in meals:
-        logger.info(f"Processing meal: {meal.get('name')}")
-        logger.info(f"  Description: {meal.get('description')}")
-    
-    result = nutrition_agent.run(meals)
-    
-    print("\n🔬 DETAILED NUTRITION OUTPUT:")
-    for meal in result["meals"]:
-        print(f"\n📌 {meal['name']}")
-        print(f"   Description: {meal.get('description', 'N/A')}")
-        print(f"   📊 Nutrition:")
-        print(f"      Calories: {meal['nutrition']['calories']} cal")
-        print(f"      Protein: {meal['nutrition']['protein_g']}g")
-        print(f"      Carbs: {meal['nutrition']['carbs_g']}g")
-        print(f"      Fat: {meal['nutrition']['fat_g']}g")
-        print(f"      Confidence: {meal['nutrition']['confidence']}")
-    
-    print(f"\n📈 DAILY TOTALS:")
-    print(f"   Total Calories: {result['daily_totals']['total_calories']} cal")
-    print(f"   Total Protein: {result['daily_totals']['total_protein_g']}g")
-    print(f"   Total Carbs: {result['daily_totals']['total_carbs_g']}g")
-    print(f"   Total Fat: {result['daily_totals']['total_fat_g']}g")
-    
-    return result
-
-
 if __name__ == "__main__":
     # Run the main system
     run_meal_planner_system()
     
-    # Uncomment below to run detailed debug mode for YOUR agent
-    # run_with_detailed_logging()

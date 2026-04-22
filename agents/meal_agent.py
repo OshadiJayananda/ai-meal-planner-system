@@ -79,8 +79,6 @@ class MealAgent:
         avoid_ingredients = context.get("avoid_ingredients", [])
         goal = context.get("goal", "balanced")
         target_calories = context.get("target_calories", 0)
-        age = context.get("age", 0)
-        current_weight = context.get("current_weight", 0)
         diet_type = context.get("diet_type", "none")
 
         try:
