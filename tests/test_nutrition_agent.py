@@ -7,6 +7,11 @@ import unittest
 import sys
 import os
 
+# Fix Windows console encoding
+if sys.platform == "win32":
+    import io
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 

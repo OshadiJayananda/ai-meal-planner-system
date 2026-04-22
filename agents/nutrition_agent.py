@@ -92,12 +92,16 @@ Always use the estimate_nutrition tool to get accurate values.
             meal_name = meal.get("name", "Unknown Meal")
             meal_description = meal.get("description", meal_name)
             
+            # Trace the tool call for Observability
+            logger.info(f"  [Tool Call] estimate_nutrition('{meal_description}')")
+            
             # Use YOUR custom tool to estimate nutrition
             try:
                 nutrition = estimate_nutrition(meal_description)
+                logger.info(f"  [Tool Result] {nutrition}")
                 logger.info(f"  ✓ {meal_name}: {nutrition['calories']} cal (confidence: {nutrition['confidence']})")
             except Exception as e:
-                logger.error(f"  ✗ Failed to estimate nutrition for {meal_name}: {e}")
+                logger.error(f"  ✗ [Tool Error] Failed to estimate nutrition for {meal_name}: {e}")
                 # Fallback values
                 nutrition = {
                     "meal_name": meal_name,
@@ -118,7 +122,9 @@ Always use the estimate_nutrition tool to get accurate values.
             enhanced_meals.append(enhanced_meal)
         
         # Calculate daily totals using YOUR second tool
+        logger.info("  [Tool Call] calculate_daily_totals")
         daily_totals = calculate_daily_totals(enhanced_meals)
+        logger.info(f"  [Tool Result] {daily_totals}")
         logger.info(f"  Daily total: {daily_totals['total_calories']} calories")
         
         # Add daily totals to the result
