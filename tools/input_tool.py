@@ -8,6 +8,19 @@ logger = logging.getLogger(__name__)
 def get_user_input() -> str:
     logger.info("Prompting user for meal plan request")
     print("\n--- Meal Plan Request ---")
-    return input(
+    request = input(
         "Describe your requirement (e.g., 'weight loss with rice, no beef, 1500 calories'): "
     ).strip()
+    age = input("Enter your age in years (or press Enter to skip): ").strip()
+    current_weight = input("Enter your current weight in kg (or press Enter to skip): ").strip()
+
+    details = []
+    if age:
+        details.append(f"Age: {age}")
+    if current_weight:
+        details.append(f"Current weight: {current_weight} kg")
+
+    if details:
+        return f"{request}. {'; '.join(details)}."
+
+    return request
