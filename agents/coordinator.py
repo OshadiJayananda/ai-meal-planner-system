@@ -15,6 +15,8 @@ DEFAULT_COORDINATOR_RESPONSE = {
     "ingredients": [],
     "avoid_ingredients": [],
     "target_calories": 0,
+    "age": 0,
+    "current_weight": 0,
     "diet_type": "none",
     "steps": DEFAULT_STEPS,
 }
@@ -101,6 +103,8 @@ class CoordinatorAgent:
         parsed.setdefault("ingredients", [])
         parsed.setdefault("avoid_ingredients", [])
         parsed.setdefault("target_calories", 0)
+        parsed.setdefault("age", 0)
+        parsed.setdefault("current_weight", 0)
         parsed.setdefault("diet_type", DEFAULT_COORDINATOR_RESPONSE["diet_type"])
         parsed_steps = parsed.get("steps", [])
         parsed["steps"] = [step for step in parsed_steps if step in DEFAULT_STEPS] or DEFAULT_STEPS.copy()
@@ -120,10 +124,14 @@ class CoordinatorAgent:
             - ingredients (list)
             - avoid_ingredients (list)
             - target_calories (number if mentioned)
+            - age (number if mentioned)
+            - current_weight (number in kg if mentioned)
             - diet_type (vegetarian / vegan / none)
 
             Important rules:
             - If target calories are not explicitly mentioned, return 0 for target_calories.
+            - If age is not explicitly mentioned, return 0 for age.
+            - If current weight is not explicitly mentioned, return 0 for current_weight.
             - Do NOT assume, infer, or guess values that are not explicitly provided.
 
             Also decide workflow steps.
@@ -134,12 +142,17 @@ class CoordinatorAgent:
                 "ingredients": ["..."],
                 "avoid_ingredients": ["..."],
                 "target_calories": 0,
+                "age": 0,
+                "current_weight": 0,
                 "diet_type": "...",
                 "steps": ["meal_generation", "nutrition_analysis", "format_output"]
             }}
             """,
             agent=self.agent,
-            expected_output="Valid JSON with goal, ingredients, avoid_ingredients, target_calories, diet_type, and steps fields"
+            expected_output=(
+                "Valid JSON with goal, ingredients, avoid_ingredients, target_calories, "
+                "age, current_weight, diet_type, and steps fields"
+            )
         )
         
         crew = Crew(agents=[self.agent], tasks=[task], verbose=False)
