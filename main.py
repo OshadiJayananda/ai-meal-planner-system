@@ -79,6 +79,8 @@ def run_meal_planner_system() -> str:
     state.ingredients = parsed.get("ingredients", [])
     state.avoid_ingredients = parsed.get("avoid_ingredients", [])
     state.target_calories = parsed.get("target_calories", 0)
+    state.age = parsed.get("age", 0)
+    state.current_weight = parsed.get("current_weight", 0)
     state.diet_type = parsed.get("diet_type", "none")
     state.steps = parsed.get("steps", []) or DEFAULT_WORKFLOW_STEPS.copy()
 
@@ -89,6 +91,8 @@ def run_meal_planner_system() -> str:
             "goal": state.goal,
             "diet_type": state.diet_type,
             "target_calories": state.target_calories,
+            "age": state.age,
+            "current_weight": state.current_weight,
             "steps": state.steps,
         },
     )

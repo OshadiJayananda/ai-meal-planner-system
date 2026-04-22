@@ -16,6 +16,8 @@ class TestMealAgent(unittest.TestCase):
             "ingredients": ["chicken", "rice", "eggs", "broccoli"],
             "avoid_ingredients": ["pork"],
             "target_calories": 1600,
+            "age": 24,
+            "current_weight": 58,
             "diet_type": "none",
         }
 
@@ -108,6 +110,15 @@ class TestMealAgent(unittest.TestCase):
         self.assertTrue(all("portion_guidance" in meal for meal in meals[:3]))
         self.assertTrue(any("small plate" in meal.get("limit_note", "").lower() for meal in meals[:3]))
         self.assertTrue(any(meal.get("goal_fit") == "recommended" for meal in meals[:3]))
+
+    def test_fallback_uses_exact_age_and_weight_when_provided(self) -> None:
+        agent = MealAgent()
+
+        with patch.object(agent, "_generate_with_crewai", return_value=""):
+            with patch.object(agent, "_generate_with_ollama_client", return_value=""):
+                meals = agent.run(self.context)
+
+        self.assertTrue(all("Age 24 years, weight 58 kg" in meal.get("portion_guidance", "") for meal in meals[:3]))
 
     def test_malformed_json_uses_fallback(self) -> None:
         agent = MealAgent()

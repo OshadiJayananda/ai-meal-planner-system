@@ -79,6 +79,8 @@ class MealAgent:
         avoid_ingredients = context.get("avoid_ingredients", [])
         goal = context.get("goal", "balanced")
         target_calories = context.get("target_calories", 0)
+        age = context.get("age", 0)
+        current_weight = context.get("current_weight", 0)
         diet_type = context.get("diet_type", "none")
 
         try:
@@ -90,6 +92,8 @@ class MealAgent:
                 - Preferred ingredients: {ingredients}
                 - Avoid ingredients: {avoid_ingredients}
                 - Target calories: {target_calories}
+                - Age: {age}
+                - Current weight (kg): {current_weight}
                 - Diet type: {diet_type}
 
                 Rules:
@@ -101,7 +105,8 @@ class MealAgent:
                 - If the user mentions oily, fried, junk, or rich foods, do not build the whole plan around them
                 - For unhealthy or rich foods, mention that they should be limited and give a small portion suggestion
                 - Generate healthier meals that support the stated goal
-                - Add estimated portion guidance using broad age and weight ranges because exact age and weight are missing
+                - If age and current weight are provided, use them directly for portion guidance
+                - Only use broad age and weight ranges when age or current weight is missing
                 - Keep meals realistic and simple
                 - Each meal must have a short useful description
 
@@ -176,6 +181,8 @@ class MealAgent:
         avoid_ingredients = context.get("avoid_ingredients", [])
         goal = context.get("goal", "balanced")
         target_calories = context.get("target_calories", 0)
+        age = context.get("age", 0)
+        current_weight = context.get("current_weight", 0)
         diet_type = context.get("diet_type", "none")
 
         return f"""
@@ -190,6 +197,8 @@ User constraints:
 - Preferred ingredients: {ingredients}
 - Avoid ingredients: {avoid_ingredients}
 - Target calories: {target_calories}
+- Age: {age}
+- Current weight (kg): {current_weight}
 - Diet type: {diet_type}
 
 Rules:
@@ -199,7 +208,8 @@ Rules:
 - If the user mentions oily, fried, junk, or rich foods, do not build the whole plan around them
 - For unhealthy or rich foods, mention that they should be limited and give a small portion suggestion
 - Generate healthier meals that support the stated goal
-- Add estimated portion guidance using broad age and weight ranges because exact age and weight are missing
+- If age and current weight are provided, use them directly for portion guidance
+- Only use broad age and weight ranges when age or current weight is missing
 - Keep meals realistic and simple
 - Each meal must have a short useful description
 - Return JSON only, with no markdown and no explanation text

@@ -78,6 +78,8 @@ class TestCoordinatorAgentLLMJudge(unittest.TestCase):
 
         calorie_match = re.search(r"(\d{3,4})\s*(kcal|calories)", prompt_lower)
         target_calories = int(calorie_match.group(1)) if calorie_match else 0
+        age_match = re.search(r"age[:\s]+(\d{1,2})", prompt_lower)
+        weight_match = re.search(r"(?:current\s+weight|weight)[:\s]+(\d{2,3})", prompt_lower)
 
         diet_type = "vegetarian" if "vegetarian" in prompt_lower else "none"
 
@@ -87,6 +89,8 @@ class TestCoordinatorAgentLLMJudge(unittest.TestCase):
                 "ingredients": ingredients,
                 "avoid_ingredients": avoid_ingredients,
                 "target_calories": target_calories,
+                "age": int(age_match.group(1)) if age_match else 0,
+                "current_weight": int(weight_match.group(1)) if weight_match else 0,
                 "diet_type": diet_type,
                 "steps": ["meal_generation", "nutrition_analysis", "format_output"],
             }

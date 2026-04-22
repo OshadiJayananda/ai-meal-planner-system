@@ -157,6 +157,8 @@ def build_fallback_meals(context: Dict[str, Any]) -> List[Dict[str, Any]]:
     goal = (context.get("goal") or "balanced").strip().lower() or "balanced"
     diet_type = (context.get("diet_type") or "none").strip().lower()
     requested_foods = normalize_ingredients(context.get("ingredients", []))
+    age = _coerce_positive_number(context.get("age", 0))
+    current_weight = _coerce_positive_number(context.get("current_weight", 0))
 
     protein = _pick_first_allowed(
         ingredients,
@@ -178,9 +180,9 @@ def build_fallback_meals(context: Dict[str, Any]) -> List[Dict[str, Any]]:
     )
     limit_note = _build_limit_note(requested_foods)
     goal_fit = "recommended" if "loss" in goal or "gain" in goal or "muscle" in goal else "balanced"
-    breakfast_guidance = _build_portion_guidance("breakfast", goal)
-    lunch_guidance = _build_portion_guidance("lunch", goal)
-    dinner_guidance = _build_portion_guidance("dinner", goal)
+    breakfast_guidance = _build_portion_guidance("breakfast", goal, age, current_weight)
+    lunch_guidance = _build_portion_guidance("lunch", goal, age, current_weight)
+    dinner_guidance = _build_portion_guidance("dinner", goal, age, current_weight)
 
     breakfast = {
         "name": f"{produce.title()} {protein.title()} Bowl",
@@ -235,7 +237,7 @@ def build_fallback_meals(context: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "description": (
                     f"An optional snack using {snack_base} in a small measured portion for extra satiety."
                 ),
-                "portion_guidance": _build_portion_guidance("snack", goal),
+                "portion_guidance": _build_portion_guidance("snack", goal, age, current_weight),
                 "goal_fit": "optional",
                 "limit_note": limit_note,
                 "alternatives": ["Choose fruit, dates, or a small handful of nuts instead of fried snacks."],
@@ -275,7 +277,7 @@ def _build_limit_note(requested_foods: List[str]) -> str:
     return "Use richer foods occasionally and keep oily gravies, fried items, and refined carbs in smaller portions."
 
 
-def _build_portion_guidance(meal_type: str, goal: str) -> str:
+def _build_portion_guidance(meal_type: str, goal: str, age: int, current_weight: int) -> str:
     meal_adjustment = {
         "breakfast": "Breakfast: 1 to 2 eggs or equivalent protein with the carb serving.",
         "lunch": "Lunch: keep vegetables at least 1 cup and curry gravy to a few spoons.",
@@ -287,5 +289,37 @@ def _build_portion_guidance(meal_type: str, goal: str) -> str:
         if "gain" in goal or "muscle" in goal
         else "For weight loss, use the lower end of the range."
     )
+    if age > 0 and current_weight > 0:
+        profile_label = f"Age {age} years, weight {current_weight} kg"
+        personalized = _personalized_portion_from_profile(goal, current_weight)
+        return f"{profile_label}: {personalized}; {meal_adjustment} {goal_note}".strip()
+
     ranges = " | ".join(f"{label}: {portion}" for label, portion in AGE_WEIGHT_RANGES)
     return f"{ranges}; {meal_adjustment} {goal_note}".strip()
+
+
+def _coerce_positive_number(value: Any) -> int:
+    try:
+        number = int(value)
+        return number if number > 0 else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def _personalized_portion_from_profile(goal: str, current_weight: int) -> str:
+    if current_weight < 50:
+        base = "1 cup carbs + 1 palm-size protein + 1 cup vegetables"
+    elif current_weight <= 65:
+        base = "1.25 cups carbs + 1 to 2 palm-size protein + 1 cup vegetables"
+    elif current_weight <= 80:
+        base = "1.5 cups carbs + 2 palm-size protein + 1 cup vegetables"
+    else:
+        base = "1.5 to 2 cups carbs + 2 palm-size protein + 1 to 1.5 cups vegetables"
+
+    if "gain" in goal or "muscle" in goal:
+        return f"{base}; add 1 extra healthy fat source such as nuts or dates if tolerated"
+
+    if "loss" in goal:
+        return f"{base}; keep oils low and stay near the lower carb end"
+
+    return base
