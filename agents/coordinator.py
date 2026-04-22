@@ -15,8 +15,6 @@ DEFAULT_COORDINATOR_RESPONSE = {
     "ingredients": [],
     "avoid_ingredients": [],
     "target_calories": 0,
-    "age": 0,
-    "current_weight": 0,
     "diet_type": "none",
     "steps": DEFAULT_STEPS,
 }
@@ -34,7 +32,7 @@ coordinator_agent = Agent(
     goal="Understand user request and plan the workflow",
     backstory="You manage other agents and decide the steps to generate a meal plan.",
     llm=llm,
-    verbose=True
+    verbose=False
 )
 
 
@@ -127,9 +125,16 @@ class CoordinatorAgent:
             return DEFAULT_COORDINATOR_RESPONSE.copy()
 
         parsed = CoordinatorAgent._select_best_parsed_dict(parsed_candidates)
-        return normalize_parsed_data(parsed)
+
+        logger.info(f"[Tool Call] normalize_parsed_data with input: {parsed}")
+        normalized = normalize_parsed_data(parsed)
+        logger.info(f"[Tool Result] normalize_parsed_data output: {normalized}")
+
+        return normalized
+
     def run(self, user_input: str) -> dict:
         logger.info("Coordinator received user request")
+        logger.info(f"[INPUT] {user_input}")
 
         # 2. Create Coordinator Task
         task = Task(
@@ -264,10 +269,22 @@ class CoordinatorAgent:
         # Crew output type may vary by version; prefer `raw` when available.
         response_text = str(getattr(result, "raw", result))
         logger.debug("Coordinator raw response: %s", response_text)
+
+        logger.info(f"[LLM OUTPUT] {response_text[:200]}")
+        
         parsed = self._parse_response_text(response_text)
+
         llm_suggested_steps = parsed.get("steps", [])
-        parsed["steps"] = select_workflow_steps(user_input, parsed)
+        logger.info(f"[Tool Call] select_workflow_steps with input: user_input={user_input}, parsed={parsed}")
+
+        final_steps = select_workflow_steps(user_input, parsed)
+        logger.info(f"[Tool Result] select_workflow_steps output: {final_steps}")
+
+        parsed["steps"] = final_steps
         logger.info(f"LLM suggested steps: {llm_suggested_steps}")
-        logger.info(f"Final selected steps: {parsed['steps']}")
+        logger.info(f"Final selected steps: {final_steps}")
+
+        parsed["steps"] = final_steps
+        logger.info(f"[FINAL DATA] {parsed}")
 
         return parsed

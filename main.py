@@ -61,7 +61,7 @@ def run_meal_planner_system() -> str:
     # Initialize agents
     coordinator = CoordinatorAgent()
     meal_agent = MealAgent()
-    nutrition_agent = NutritionAgent()  # YOUR agent with custom tool
+    nutrition_agent = NutritionAgent()
     output_agent = OutputAgent()
 
     # ============================================
