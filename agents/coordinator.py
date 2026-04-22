@@ -15,6 +15,8 @@ DEFAULT_COORDINATOR_RESPONSE = {
     "ingredients": [],
     "avoid_ingredients": [],
     "target_calories": 0,
+    "age": 0,
+    "current_weight": 0,
     "diet_type": "none",
     "steps": DEFAULT_STEPS,
 }

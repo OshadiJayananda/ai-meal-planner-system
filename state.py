@@ -9,6 +9,8 @@ class PlannerState:
         self.ingredients = []
         self.avoid_ingredients = []
         self.target_calories = None
+        self.age = 0
+        self.current_weight = 0
         self.diet_type = "none"
         self.steps = []
         self.executed_steps = []

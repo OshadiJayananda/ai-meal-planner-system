@@ -2,10 +2,24 @@ import json
 import os
 import sys
 import unittest
+from types import ModuleType
 from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+if "crewai" not in sys.modules:
+    crewai_stub = ModuleType("crewai")
+
+    class _CrewAIStub:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    crewai_stub.Agent = _CrewAIStub
+    crewai_stub.Crew = _CrewAIStub
+    crewai_stub.LLM = _CrewAIStub
+    crewai_stub.Task = _CrewAIStub
+    sys.modules["crewai"] = crewai_stub
 
 from agents.coordinator import CoordinatorAgent
 
@@ -22,6 +36,8 @@ class TestCoordinatorAgent(unittest.TestCase):
             "ingredients": ["chicken", "rice"],
             "avoid_ingredients": ["pork"],
             "target_calories": 1500,
+            "age": 24,
+            "current_weight": 58,
             "diet_type": "none",
             "steps": ["meal_generation", "nutrition_analysis", "format_output"]
         })
@@ -37,6 +53,8 @@ class TestCoordinatorAgent(unittest.TestCase):
         self.assertEqual(result["ingredients"], ["chicken", "rice"])
         self.assertIn("pork", result["avoid_ingredients"])
         self.assertEqual(result["target_calories"], 1500)
+        self.assertEqual(result["age"], 24)
+        self.assertEqual(result["current_weight"], 58)
         self.assertEqual(result["steps"], ["meal_generation", "nutrition_analysis", "format_output"])
 
     # Malformed JSON recovery
@@ -102,6 +120,8 @@ class TestCoordinatorAgent(unittest.TestCase):
             "ingredients": ["eggs"],
             "avoid_ingredients": [],
             "target_calories": 2000,
+            "age": 21,
+            "current_weight": 62,
             "diet_type": "none",
             "steps": ["meal_generation", "nutrition_analysis", "format_output"]
         })
@@ -116,6 +136,8 @@ class TestCoordinatorAgent(unittest.TestCase):
         self.assertIsInstance(result["ingredients"], list)
         self.assertIsInstance(result["avoid_ingredients"], list)
         self.assertIsInstance(result["target_calories"], int)
+        self.assertIsInstance(result["age"], int)
+        self.assertIsInstance(result["current_weight"], int)
         self.assertIsInstance(result["steps"], list)
 
     def test_workflow_case_meal_and_format_when_no_calories(self):
