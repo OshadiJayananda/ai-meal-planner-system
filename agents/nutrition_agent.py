@@ -112,7 +112,8 @@ Always use the estimate_nutrition tool to get accurate values.
             # Combine original meal data with nutrition
             enhanced_meal = {
                 **meal,  # Keep original meal data
-                "nutrition": nutrition
+                "nutrition": nutrition,
+                "calories": nutrition.get("calories", 0)  # Flattened for OutputAgent
             }
             enhanced_meals.append(enhanced_meal)
         
