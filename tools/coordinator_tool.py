@@ -25,6 +25,24 @@ def normalize_parsed_data(parsed: dict) -> dict:
     """Normalize LLM output fields into a stable coordinator payload."""
     normalized: dict = parsed.copy() if isinstance(parsed, dict) else {}
 
+    age = normalized.get("age", 0)
+    if isinstance(age, int):
+        normalized["age"] = age
+    else:
+        try:
+            normalized["age"] = int(age)
+        except (TypeError, ValueError):
+            normalized["age"] = 0
+
+    current_weight = normalized.get("current_weight", 0)
+    if isinstance(current_weight, int):
+        normalized["current_weight"] = current_weight
+    else:
+        try:
+            normalized["current_weight"] = int(current_weight)
+        except (TypeError, ValueError):
+            normalized["current_weight"] = 0
+
     goal = normalized.get("goal")
     if not isinstance(goal, str) or not goal.strip():
         normalized["goal"] = "maintenance"

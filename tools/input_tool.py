@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def get_user_input() -> str:
+def get_user_input() -> tuple:
     logger.info("Prompting user for meal plan request")
     print("\n--- Meal Plan Request ---")
     request = input(
@@ -14,13 +14,4 @@ def get_user_input() -> str:
     age = input("Enter your age in years (or press Enter to skip): ").strip()
     current_weight = input("Enter your current weight in kg (or press Enter to skip): ").strip()
 
-    details = []
-    if age:
-        details.append(f"Age: {age}")
-    if current_weight:
-        details.append(f"Current weight: {current_weight} kg")
-
-    if details:
-        return f"{request}. {'; '.join(details)}."
-
-    return request
+    return request, age, current_weight

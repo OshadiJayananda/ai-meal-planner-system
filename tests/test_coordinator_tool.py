@@ -7,6 +7,8 @@ class TestCoordinatorTool(unittest.TestCase):
 
     def test_normalize_parsed_data_with_garbage_values(self):
         parsed = {
+            "age": "29",
+            "current_weight": "82",
             "goal": "",
             "ingredients": ["  chicken  ", "", 123, " rice"],
             "avoid_ingredients": "pork",
@@ -17,12 +19,19 @@ class TestCoordinatorTool(unittest.TestCase):
 
         normalized = normalize_parsed_data(parsed)
 
+        self.assertEqual(normalized["age"], 29)
+        self.assertEqual(normalized["current_weight"], 82)
         self.assertEqual(normalized["goal"], "maintenance")
         self.assertEqual(normalized["diet_type"], "none")
         self.assertEqual(normalized["ingredients"], ["chicken", "rice"])
         self.assertEqual(normalized["avoid_ingredients"], [])
         self.assertEqual(normalized["target_calories"], 1500)
         self.assertEqual(normalized["steps"], ["nutrition_analysis", "format_output"])
+
+    def test_normalize_parsed_data_defaults_age_and_weight(self):
+        normalized = normalize_parsed_data({"age": "", "current_weight": None})
+        self.assertEqual(normalized["age"], 0)
+        self.assertEqual(normalized["current_weight"], 0)
 
     def test_normalize_parsed_data_defaults_steps_when_invalid(self):
         normalized = normalize_parsed_data({"steps": "meal_generation"})

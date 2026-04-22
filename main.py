@@ -8,6 +8,7 @@ from agents.meal_agent import MealAgent
 from agents.nutrition_agent import NutritionAgent
 from agents.output_agent import OutputAgent
 from state import PlannerState
+import state
 from tools.format_tool import add_footer
 from tools.input_tool import get_user_input
 from tools.nutrition_tool import estimate_total_calories
@@ -68,8 +69,14 @@ def run_meal_planner_system() -> str:
     # STEP 1: Get user input and parse with Coordinator
     # ============================================
     logger.info("📝 STEP 1: Getting user input...")
-    state.user_input = get_user_input()
-    logger.info(f"User input: {state.user_input}")
+    state.user_input, age, weight = get_user_input()
+
+    state.age = int(age) if age else 0
+    state.current_weight = int(weight) if weight else 0
+
+    logger.info(f"✓ User input: {state.user_input}")
+    logger.info(f"✓ Age: {state.age}")
+    logger.info(f"✓ Weight: {state.current_weight}")
 
     _record_trace(state, "coordinator.start", {"user_input": state.user_input})
     parsed = coordinator.run(state.user_input)
@@ -79,8 +86,6 @@ def run_meal_planner_system() -> str:
     state.ingredients = parsed.get("ingredients", [])
     state.avoid_ingredients = parsed.get("avoid_ingredients", [])
     state.target_calories = parsed.get("target_calories", 0)
-    state.age = parsed.get("age", 0)
-    state.current_weight = parsed.get("current_weight", 0)
     state.diet_type = parsed.get("diet_type", "none")
     state.steps = parsed.get("steps", []) or DEFAULT_WORKFLOW_STEPS.copy()
 
@@ -105,7 +110,7 @@ def run_meal_planner_system() -> str:
         logger.info("🍳 STEP: meal_generation started")
         _record_trace(state, "meal_generation.start", {"goal": state.goal, "ingredients": state.ingredients})
 
-        state.meals = meal_agent.run(state.parsed_request)
+        state.meals = meal_agent.run(state.parsed_request, state.age, state.current_weight)
 
         # Non-trivial branch: enforce vegetarian constraint before downstream analysis.
         if state.diet_type == "vegetarian":
