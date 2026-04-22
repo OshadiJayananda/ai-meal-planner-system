@@ -124,11 +124,20 @@ PASS or FAIL
     def test_llm_judge_multiple_cases(self) -> None:
 
         test_prompts = [
+            "I need a weight loss meal plan with chicken and rice around 1400 calories",
+            "Create a vegetarian meal plan using beans and spinach, target 1500 kcal",
+            
             "I want a weight loss meal plan using rice and chicken",
-            "Give me a muscle gain meal plan with chicken and eggs but no pork",
-            "I need a weight loss plan using rice, vegetables and chicken, avoid beef, around 1300 calories",
-            "Create a vegetarian meal plan using vegetables and beans, about 1200 kcal",
-            "I want a low calorie meal plan around 1200 kcal, avoid fried food, include rice if possible"
+            "Give me a muscle gain meal plan with eggs and fish but no pork",
+            
+            "Analyze calories of these meals: grilled chicken salad, tuna sandwich",
+            "Calculate macros for these meals: oatmeal with banana, chicken stir-fry",
+            
+            "Just give me meal ideas",
+            "Only meal ideas with chicken and rice",
+            
+            "I want meal ideas and if possible show calories",
+            "Analyze calories for these meals and suggest one better option"
         ]
 
         for prompt in test_prompts:
