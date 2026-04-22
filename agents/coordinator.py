@@ -5,26 +5,10 @@ import logging
 import re
 
 from crewai import Agent, Crew, LLM, Task
+from tools.coordinator_tool import DEFAULT_STEPS, normalize_parsed_data, select_workflow_steps
 
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_STEPS = ["meal_generation", "nutrition_analysis", "format_output"]
-STEP_CASE_FULL_PIPELINE = ["meal_generation", "nutrition_analysis", "format_output"]
-STEP_CASE_MEAL_AND_FORMAT = ["meal_generation", "format_output"]
-STEP_CASE_NUTRITION_AND_FORMAT = ["nutrition_analysis", "format_output"]
-STEP_CASE_MEAL_ONLY = ["meal_generation"]
-
-ALLOWED_STEP_COMBINATIONS = {
-    tuple(STEP_CASE_FULL_PIPELINE),
-    tuple(STEP_CASE_MEAL_AND_FORMAT),
-    tuple(STEP_CASE_NUTRITION_AND_FORMAT),
-    tuple(STEP_CASE_MEAL_ONLY),
-}
-
-CALORIE_MENTION_PATTERN = re.compile(r"\b\d{3,4}\s*(kcal|calories?|cal)\b", re.IGNORECASE)
-NUTRITION_SIGNAL_PATTERN = re.compile(r"\b(calories?|nutrition|macros?|protein|carbs?|fat)\b", re.IGNORECASE)
-NUTRITION_ACTION_PATTERN = re.compile(r"\b(analy[sz]e|calculate|estimate|breakdown|check|track)\b", re.IGNORECASE)
 
 DEFAULT_COORDINATOR_RESPONSE = {
     "goal": "balanced",
@@ -67,16 +51,6 @@ class CoordinatorAgent:
             cleaned_text = re.sub(r"\s*```$", "", cleaned_text)
 
         return cleaned_text.strip()
-
-    @staticmethod
-    def _extract_json_text(response_text: str) -> str:
-        cleaned_text = CoordinatorAgent._strip_code_fences(response_text)
-        json_match = JSON_OBJECT_PATTERN.search(cleaned_text)
-
-        if json_match:
-            return json_match.group(0)
-
-        return cleaned_text
 
     @staticmethod
     def _extract_json_object_candidates(response_text: str) -> list[str]:
@@ -151,125 +125,7 @@ class CoordinatorAgent:
             return DEFAULT_COORDINATOR_RESPONSE.copy()
 
         parsed = CoordinatorAgent._select_best_parsed_dict(parsed_candidates)
-
-        # -------------------------
-        # Normalize goal
-        # -------------------------
-        goal = parsed.get("goal")
-        if not isinstance(goal, str) or not goal.strip():
-            parsed["goal"] = "maintenance"
-        else:
-            normalized_goal = goal.strip().lower()
-            if normalized_goal == "balanced":
-                normalized_goal = "maintenance"
-            parsed["goal"] = normalized_goal
-
-        # -------------------------
-        # Normalize diet_type
-        # -------------------------
-        diet = parsed.get("diet_type")
-        if not isinstance(diet, str) or not diet.strip():
-            parsed["diet_type"] = "none"
-        else:
-            parsed["diet_type"] = diet.strip().lower()
-
-        # -------------------------
-        # Normalize ingredients
-        # -------------------------
-        ingredients = parsed.get("ingredients")
-        if not isinstance(ingredients, list):
-            parsed["ingredients"] = []
-        else:
-            parsed["ingredients"] = ingredients
-
-        # -------------------------
-        # Normalize avoid_ingredients
-        # -------------------------
-        avoid = parsed.get("avoid_ingredients")
-        if not isinstance(avoid, list):
-            parsed["avoid_ingredients"] = []
-        else:
-            parsed["avoid_ingredients"] = avoid
-
-        # -------------------------
-        # Normalize target_calories
-        # -------------------------
-        target_calories = parsed.get("target_calories")
-        if isinstance(target_calories, int):
-            parsed["target_calories"] = target_calories
-        else:
-            try:
-                parsed["target_calories"] = int(target_calories)
-            except (TypeError, ValueError):
-                parsed["target_calories"] = 0
-
-        # -------------------------
-        # Ensure steps exist
-        # -------------------------
-        steps = parsed.get("steps")
-        if not isinstance(steps, list):
-            parsed["steps"] = DEFAULT_STEPS.copy()
-
-        return parsed
-    @staticmethod
-    def _canonicalize_steps(raw_steps: list[str] | tuple[str, ...] | None) -> list[str]:
-        if not raw_steps:
-            return []
-
-        ordered: list[str] = []
-        for step in DEFAULT_STEPS:
-            if step in raw_steps and step not in ordered:
-                ordered.append(step)
-
-        return ordered
-
-    @staticmethod
-    def _is_minimal_meal_request(user_input: str) -> bool:
-        lowered = user_input.lower()
-        minimal_phrases = (
-            "just give me meal ideas",
-            "just meal ideas",
-            "only meal ideas",
-            "just give meal ideas",
-            "only meals",
-            "just meals",
-        )
-        return any(phrase in lowered for phrase in minimal_phrases)
-
-    @staticmethod
-    def _is_nutrition_focused_request(user_input: str) -> bool:
-        has_action = bool(NUTRITION_ACTION_PATTERN.search(user_input))
-        has_nutrition_signal = bool(NUTRITION_SIGNAL_PATTERN.search(user_input))
-        mentions_existing_meals = any(
-            marker in user_input.lower()
-            for marker in ("these meals", "my meals", "this meal", "given meals")
-        )
-        return has_action and has_nutrition_signal and mentions_existing_meals
-
-    @staticmethod
-    def _select_workflow_steps(user_input: str, parsed: dict) -> list[str]:
-        user_input = user_input or ""
-
-        target_calories = parsed.get("target_calories", 0)
-        calorie_mentioned = isinstance(target_calories, int) and target_calories > 0
-        if not calorie_mentioned:
-            calorie_mentioned = bool(CALORIE_MENTION_PATTERN.search(user_input))
-
-        if CoordinatorAgent._is_minimal_meal_request(user_input):
-            return STEP_CASE_MEAL_ONLY.copy()
-
-        if CoordinatorAgent._is_nutrition_focused_request(user_input):
-            return STEP_CASE_NUTRITION_AND_FORMAT.copy()
-
-        if calorie_mentioned:
-            return STEP_CASE_FULL_PIPELINE.copy()
-
-        llm_steps = CoordinatorAgent._canonicalize_steps(parsed.get("steps"))
-        if tuple(llm_steps) in ALLOWED_STEP_COMBINATIONS and llm_steps != STEP_CASE_FULL_PIPELINE:
-            return llm_steps
-
-        return STEP_CASE_MEAL_AND_FORMAT.copy()
-
+        return normalize_parsed_data(parsed)
     def run(self, user_input: str) -> dict:
         logger.info("Coordinator received user request")
 
@@ -408,9 +264,7 @@ class CoordinatorAgent:
         logger.debug("Coordinator raw response: %s", response_text)
         parsed = self._parse_response_text(response_text)
         llm_suggested_steps = parsed.get("steps", [])
-        logger.info(f"Parsed diet type: {parsed['diet_type']}")
-        logger.info(f"Parsed goal: {parsed['goal']}")
-        parsed["steps"] = self._select_workflow_steps(user_input, parsed)
+        parsed["steps"] = select_workflow_steps(user_input, parsed)
         logger.info(f"LLM suggested steps: {llm_suggested_steps}")
         logger.info(f"Final selected steps: {parsed['steps']}")
 
