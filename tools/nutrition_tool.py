@@ -150,22 +150,15 @@ def estimate_nutrition(meal_description: str) -> Dict[str, Any]:
         }
     
     # Find matching ingredients (normal case)
-    # Sort by length (longest first) to avoid matching "chicken" inside "chicken breast"
-    sorted_ingredients = sorted(nutrition_db.keys(), key=len, reverse=True)
-    temp_lower = meal_lower
-    
-    for ingredient in sorted_ingredients:
-        if ingredient in temp_lower:
+    for ingredient, values in nutrition_db.items():
+        if ingredient in meal_lower:
             # Only add each ingredient once
             if ingredient not in detected_ingredients:
-                values = nutrition_db[ingredient]
                 detected_ingredients.append(ingredient)
                 total_calories += values["calories"]
                 total_protein += values["protein"]
                 total_carbs += values["carbs"]
                 total_fat += values["fat"]
-                # Mask this part of the string so shorter ingredients don't match it again
-                temp_lower = temp_lower.replace(ingredient, " [MATCHED] ")
     
     # Remove duplicates
     detected_ingredients = list(set(detected_ingredients))

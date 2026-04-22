@@ -57,9 +57,6 @@ def init_db():
         ("spinach", 23, 2.9, 3.6, 0.4, "100g"),
         ("salad", 15, 1, 3, 0.1, "100g"),
         ("vegetables", 30, 2, 5, 0.5, "100g"),
-        ("vegetable", 30, 2, 5, 0.5, "100g"),
-        ("veggies", 30, 2, 5, 0.5, "100g"),
-        ("greens", 25, 2, 4, 0.3, "100g"),
         
         # Fats/Oils
         ("olive oil", 119, 0, 0, 13.5, "1 tbsp"),
