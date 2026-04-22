@@ -71,6 +71,26 @@ Potential extensions:
 
 This repository represents a baseline, working multi-agent meal planner and serves as a foundation for further feature development.
 
+## Running Tests
+
+Run all unit tests from the project root:
+
+```powershell
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+Run only the Coordinator LLM-as-a-Judge test:
+
+```powershell
+python -m unittest tests/test_coordinator_llm_judge.py
+```
+
+Run only the Coordinator parser/unit test:
+
+```powershell
+python -m unittest .\tests\test_coordinator.py
+```
+
 ## Checklist
 
 Track assignment completion here:

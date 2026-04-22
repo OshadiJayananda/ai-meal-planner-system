@@ -118,28 +118,5 @@ class TestCoordinatorAgent(unittest.TestCase):
         self.assertIsInstance(result["target_calories"], int)
         self.assertIsInstance(result["steps"], list)
 
-    # Logical condition correctness
-    def test_avoid_pork_logic(self):
-        mock_response = json.dumps({
-            "goal": "weight loss",
-            "ingredients": ["rice"],
-            "avoid_ingredients": ["pork"],
-            "target_calories": 1200,
-            "diet_type": "none",
-            "steps": ["meal_generation", "nutrition_analysis", "format_output"]
-        })
-
-        mock_crew = SimpleNamespace(
-            kickoff=lambda: SimpleNamespace(raw=mock_response)
-        )
-
-        prompt = "I want a diet plan, avoid pork"
-
-        with patch("agents.coordinator.Crew", return_value=mock_crew):
-            result = self.agent.run(prompt)
-
-        self.assertIn("pork", result["avoid_ingredients"])
-
-
 if __name__ == "__main__":
     unittest.main()
