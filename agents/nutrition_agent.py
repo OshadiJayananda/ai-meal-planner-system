@@ -3,6 +3,7 @@ Nutrition Agent for Meal Planner System
 Author: Oshadi Jayananda
 """
 
+import json
 import logging
 from typing import Dict, List, Any
 from langchain_community.llms import Ollama
@@ -14,8 +15,6 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from tools.nutrition_tool import estimate_nutrition, calculate_daily_totals
 
 logger = logging.getLogger(__name__)
-
-
 class NutritionAgent:
     """
     Nutrition Expert Agent - Calculates nutritional information for meals.
@@ -23,6 +22,27 @@ class NutritionAgent:
     This agent uses a custom tool to estimate calories, protein, carbs, and fat
     for each meal suggested by the Meal Agent.
     """
+
+    BATCH_INGREDIENT_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "meals": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "meal_index": {"type": "integer"},
+                        "ingredients": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        }
+                    },
+                    "required": ["meal_index", "ingredients"]
+                }
+            }
+        },
+        "required": ["meals"]
+    }
     
     def __init__(self, model: str = "llama3"):
         """
@@ -71,38 +91,196 @@ For "Chicken Breast with Rice":
 
 Always use the estimate_nutrition tool to get accurate values.
 """
-    
-    def run(self, meals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+
+    def _extract_ingredients_with_llm(self, text: str) -> List[str]:
         """
-        Calculate nutrition for each meal in the list.
-        
+        Use Ollama structured output to extract ingredients.
+        """
+        prompt = f"""
+        Extract the main food ingredients from this meal:
+
+        "{text}"
+
+        Rules:
+        - Return ONLY a JSON object with key "ingredients"
+        - Ingredients must be SPECIFIC (not generic)
+        - Do NOT return generic terms like "fruit", "food", "meal"
+
+        - If a generic term appears, replace it with common specific items:
+        - "fruit smoothie" → banana, milk
+        - "fruit salad" → apple, banana
+        - "vegetable dish" → carrot, beans
+        - "smoothie" → banana, milk
+
+        - Use simple base ingredient names only
+        - No cooking styles (no "grilled", "fried")
+        - No adjectives (no "fresh", "spicy")
+        - Maximum 5 ingredients
+
+        Examples:
+
+        Input: "Fruit smoothie"
+        Output: {{ "ingredients": ["banana", "milk"] }}
+
+        Input: "Grilled chicken salad"
+        Output: {{ "ingredients": ["chicken", "salad"] }}
+
+        Output:
+        """
+
+        try:
+            response = self.llm.invoke(
+                prompt,
+                format=self.INGREDIENT_SCHEMA
+            )
+
+            logger.info(f"  [LLM Response] {response}")
+
+            if isinstance(response, dict):
+                data = response
+            else:
+                data = json.loads(response)
+
+            ingredients = data.get("ingredients", [])
+
+            # basic cleanup
+            ingredients = [i.strip().lower() for i in ingredients if i]
+
+            return ingredients
+
+        except Exception as e:
+            logger.warning(f"Ingredient extraction failed: {e}")
+            return []
+ 
+    def _extract_ingredients_batch_with_llm(self, meal_texts: List[str]) -> Dict[int, List[str]]:
+        """
+        Use Ollama structured output to extract ingredients for multiple meals in one request.
+
         Args:
-            meals: List of meal dictionaries from Meal Agent
-                  Expected format: [{"name": "Breakfast", "description": "..."}, ...]
-        
+            meal_texts: List of meal descriptions
+
         Returns:
-            List of meals with nutrition information added
+            Dict[int, List[str]] mapping meal index to extracted ingredients
         """
+        numbered_meals = "\n".join(
+            [f'{idx}: "{text}"' for idx, text in enumerate(meal_texts)]
+        )
+
+        prompt = f"""
+        Extract the main food ingredients from these meals.
+
+        Meals:
+        {numbered_meals}
+
+        Rules:
+        - Return ONLY a JSON object with key "meals"
+        - Each item must contain:
+        - "meal_index": integer
+        - "ingredients": array of strings
+        - Ingredients must be SPECIFIC (not generic)
+        - Do NOT return generic terms like "fruit", "food", "meal"
+        - If a generic term appears, replace it with common specific items:
+        - "fruit smoothie" -> banana, milk
+        - "fruit salad" -> apple, banana
+        - "vegetable dish" -> carrot, beans
+        - "smoothie" -> banana, milk
+        - Use simple base ingredient names only
+        - No cooking styles (no "grilled", "fried")
+        - No adjectives (no "fresh", "spicy")
+        - Maximum 5 ingredients per meal
+
+        Example output:
+        {{
+        "meals": [
+            {{ "meal_index": 0, "ingredients": ["banana", "milk"] }},
+            {{ "meal_index": 1, "ingredients": ["chicken", "salad"] }}
+        ]
+        }}
+
+        Output:
+        """
+
+        try:
+            response = self.llm.invoke(
+                prompt,
+                format=self.BATCH_INGREDIENT_SCHEMA
+            )
+
+            logger.info(f"  [Batch LLM Response] {response}")
+
+            if isinstance(response, dict):
+                data = response
+            else:
+                data = json.loads(response)
+
+            result = {}
+            for item in data.get("meals", []):
+                meal_index = item.get("meal_index")
+                ingredients = item.get("ingredients", [])
+
+                if isinstance(meal_index, int):
+                    cleaned_ingredients = [
+                        i.strip().lower() for i in ingredients
+                        if isinstance(i, str) and i.strip()
+                    ]
+                    result[meal_index] = cleaned_ingredients
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"Batch ingredient extraction failed: {e}")
+            return {} 
+ 
+    def run(self, meals: List[Dict[str, Any]]) -> Dict[str, Any]:
         logger.info(f"Nutrition Agent: Processing {len(meals)} meals")
-        
+
         enhanced_meals = []
-        
-        for meal in meals:
-            # Get meal name and description
+
+        meal_descriptions = [
+            meal.get("description", meal.get("name", "Unknown Meal"))
+            for meal in meals
+        ]
+
+        batch_ingredients = {}
+        batch_called = False
+
+        for idx, meal in enumerate(meals):
             meal_name = meal.get("name", "Unknown Meal")
             meal_description = meal.get("description", meal_name)
-            
-            # Trace the tool call for Observability
-            logger.info(f"  [Tool Call] estimate_nutrition('{meal_description}')")
-            
-            # Use YOUR custom tool to estimate nutrition
+
+            ingredients = meal.get("ingredients_used", [])
+
+            if not ingredients:
+                if not batch_called:
+                    logger.warning("⚠️ No ingredients from Meal Agent, using batch extraction")
+                    logger.info(f"[Tool Call] _extract_ingredients_batch_with_llm")
+                    batch_ingredients = self._extract_ingredients_batch_with_llm(meal_descriptions)
+                    logger.info(f"[Tool Result] {batch_ingredients}")
+                    batch_called = True
+
+                ingredients = batch_ingredients.get(idx, [])
+
+            if not ingredients:
+                logger.warning(f"⚠️ Still missing ingredients for meal {idx}, using single extraction")
+                ingredients = self._extract_ingredients_with_llm(meal_description)
+
+            if ingredients:
+                cleaned_input = " ".join(ingredients)
+                logger.info(f"🔍 Using ingredients: {ingredients}")
+            else:
+                cleaned_input = meal_description
+                logger.warning("⚠️ Using raw description")
+
+            # Tool call
+            logger.info(f"[Tool Call] estimate_nutrition('{cleaned_input}')")
+
             try:
-                nutrition = estimate_nutrition(meal_description)
-                logger.info(f"  [Tool Result] {nutrition}")
+                nutrition = estimate_nutrition(cleaned_input)
+                logger.info(f"[Tool Result] {nutrition}")
                 logger.info(f"  ✓ {meal_name}: {nutrition['calories']} cal (confidence: {nutrition['confidence']})")
+
             except Exception as e:
-                logger.error(f"  ✗ [Tool Error] Failed to estimate nutrition for {meal_name}: {e}")
-                # Fallback values
+                logger.error(f"✗ Tool error for {meal_name}: {e}")
                 nutrition = {
                     "meal_name": meal_name,
                     "calories": 400,
@@ -112,29 +290,24 @@ Always use the estimate_nutrition tool to get accurate values.
                     "confidence": "low",
                     "ingredients_found": []
                 }
-            
-            # Combine original meal data with nutrition
-            enhanced_meal = {
-                **meal,  # Keep original meal data
+
+            enhanced_meals.append({
+                **meal,
                 "nutrition": nutrition,
-                "calories": nutrition.get("calories", 0)  # Flattened for OutputAgent
-            }
-            enhanced_meals.append(enhanced_meal)
-        
-        # Calculate daily totals using YOUR second tool
-        logger.info("  [Tool Call] calculate_daily_totals")
+                "calories": nutrition.get("calories", 0)
+            })
+
+        # Daily totals
+        logger.info("[Tool Call] calculate_daily_totals")
         daily_totals = calculate_daily_totals(enhanced_meals)
-        logger.info(f"  [Tool Result] {daily_totals}")
+        logger.info(f"[Tool Result] {daily_totals}")
         logger.info(f"  Daily total: {daily_totals['total_calories']} calories")
-        
-        # Add daily totals to the result
-        result = {
+
+        return {
             "meals": enhanced_meals,
             "daily_totals": daily_totals
-        }
-        
-        return result
-    
+        }    
+
     def run_with_llm_enhancement(self, meals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Advanced version: Use LLM to enhance nutrition estimates with explanations.
