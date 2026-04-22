@@ -129,6 +129,8 @@ def run_meal_planner_system() -> str:
         state.meals = state.nutrition_result["meals"]
 
         daily_totals = state.nutrition_result.get("daily_totals", {})
+        # Persist daily totals on shared state for downstream steps
+        state.daily_totals = daily_totals
         logger.info(f"✓ Daily total: {daily_totals.get('total_calories', 0)} calories")
         logger.info(f"✓ Daily protein: {daily_totals.get('total_protein_g', 0)}g")
         logger.info(f"✓ Daily carbs: {daily_totals.get('total_carbs_g', 0)}g")
@@ -140,8 +142,25 @@ def run_meal_planner_system() -> str:
         logger.info("📝 STEP: format_output started")
         _record_trace(state, "format_output.start", {"meal_count": len(state.meals)})
 
-        base_output = output_agent.run(state.meals)
+        # Compute totals first so they are available to the output formatter
         total_calories = estimate_total_calories(state.meals)
+
+        base_output = output_agent.run({
+            "user_profile": {
+                "goal": state.goal,
+                "diet_type": state.diet_type,
+                "target_calories": state.target_calories,
+                "ingredients": state.ingredients,
+                "avoid_ingredients": state.avoid_ingredients,
+            },
+            "meal_plan": state.meals,
+            "daily_totals": {
+                "total_calories": total_calories,
+                "total_protein_g": state.daily_totals.get("total_protein_g", 0),
+                "total_carbs_g": state.daily_totals.get("total_carbs_g", 0),
+                "total_fat_g": state.daily_totals.get("total_fat_g", 0),
+            }
+        })
 
         footer_lines = [f"Total Estimated Calories: {total_calories} kcal"]
         if isinstance(state.target_calories, int) and state.target_calories > 0:

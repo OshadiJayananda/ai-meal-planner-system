@@ -14,6 +14,8 @@ class PlannerState:
         self.executed_steps = []
         self.meals = []
         self.nutrition_result = {}
+        # Aggregated daily nutrition totals produced by NutritionAgent
+        self.daily_totals: dict[str, float] = {}
         self.final_output = ""
         self.trace_events = []
         self.errors = []
