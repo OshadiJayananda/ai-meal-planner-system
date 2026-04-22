@@ -8,7 +8,6 @@ from agents.meal_agent import MealAgent
 from agents.nutrition_agent import NutritionAgent
 from agents.output_agent import OutputAgent
 from state import PlannerState
-import state
 from tools.format_tool import add_footer
 from tools.input_tool import get_user_input
 from tools.nutrition_tool import estimate_total_calories
@@ -132,6 +131,14 @@ def run_meal_planner_system() -> str:
 
     def execute_nutrition_analysis() -> None:
         logger.info("🧮 STEP: nutrition_analysis started")
+
+        if not state.meals and state.ingredients:
+            logger.info("🔧 Converting ingredients → meals for analysis")
+            state.meals = [
+                {"name": item, "description": f"{item} meal"}
+                for item in state.ingredients
+            ]
+
         _record_trace(state, "nutrition_analysis.start", {"meal_count": len(state.meals)})
 
         state.nutrition_result = nutrition_agent.run(state.meals)
