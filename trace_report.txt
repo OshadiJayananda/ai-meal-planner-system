@@ -1,0 +1,55 @@
+TRACE REPORT
+============================================================
+Generated at: 2026-04-23T08:49:48.792+00:00
+Total events: 19
+Trace span: 2026-04-23T08:44:08.010000+00:00 -> 2026-04-23T08:49:48.788000+00:00 (340778 ms)
+Executed steps: nutrition_analysis, format_output
+Errors: 0
+
+Event counts:
+- coordinator.complete: 1
+- coordinator.start: 1
+- format_output.branch.target_comparison_skipped: 1
+- format_output.complete: 1
+- format_output.start: 1
+- nutrition_analysis.complete: 1
+- nutrition_analysis.start: 1
+- tool_call._extract_ingredients_batch_with_llm.complete: 1
+- tool_call._extract_ingredients_batch_with_llm.start: 1
+- tool_call.calculate_daily_totals.complete: 1
+- tool_call.calculate_daily_totals.start: 1
+- tool_call.estimate_nutrition.complete: 3
+- tool_call.estimate_nutrition.start: 3
+- tool_call.estimate_total_calories.complete: 1
+- tool_call.estimate_total_calories.start: 1
+
+Timeline:
+- 2026-04-23T08:44:08.010+00:00 | coordinator.start | {'input': 'Check protein, carbs, and fat for these meals: tofu curry, quinoa salad, nuts'}
+- 2026-04-23T08:46:24.604+00:00 | coordinator.complete | {'input': 'Check protein, carbs, and fat for these meals: tofu curry, quinoa salad, nuts', 'goal': 'maintenance', 'diet_type': 'vegan', 'target_calories': 0, 'age': 25, 'current_weight': 45, 'steps': ['nutrition_analysis', 'format_output']}
+- 2026-04-23T08:46:24.618+00:00 | nutrition_analysis.start | {'input': {'meal_count': 3}}
+- 2026-04-23T08:46:24.620+00:00 | tool_call._extract_ingredients_batch_with_llm.start | {'input': {'meal_count': 3}}
+- 2026-04-23T08:47:14.769+00:00 | tool_call._extract_ingredients_batch_with_llm.complete | {'output': {'meal_indices': [0, 1, 2]}}
+- 2026-04-23T08:47:14.769+00:00 | tool_call.estimate_nutrition.start | {'input': {'meal_name': 'tofu curry', 'meal_description': 'tofu curry'}}
+- 2026-04-23T08:47:14.769+00:00 | tool_call.estimate_nutrition.complete | {'input': {'meal_name': 'tofu curry'}, 'output': {'meal_name': 'Tofu', 'calories': 76, 'protein_g': 8, 'carbs_g': 2, 'fat_g': 5, 'confidence': 'medium', 'ingredients_found': ['tofu']}}
+- 2026-04-23T08:47:14.775+00:00 | tool_call.estimate_nutrition.start | {'input': {'meal_name': 'quinoa salad', 'meal_description': 'quinoa lettuce tomato cucumber chicken'}}
+- 2026-04-23T08:47:14.775+00:00 | tool_call.estimate_nutrition.complete | {'input': {'meal_name': 'quinoa salad'}, 'output': {'meal_name': 'Quinoa + Chicken', 'calories': 285, 'protein_g': 35, 'carbs_g': 21, 'fat_g': 6, 'confidence': 'high', 'ingredients_found': ['quinoa', 'chicken']}}
+- 2026-04-23T08:47:14.775+00:00 | tool_call.estimate_nutrition.start | {'input': {'meal_name': 'nuts', 'meal_description': 'peanuts almonds'}}
+- 2026-04-23T08:47:14.775+00:00 | tool_call.estimate_nutrition.complete | {'input': {'meal_name': 'nuts'}, 'output': {'meal_name': 'Peanuts Almonds', 'calories': 400, 'protein_g': 15, 'carbs_g': 40, 'fat_g': 15, 'confidence': 'low', 'ingredients_found': ['unknown']}}
+- 2026-04-23T08:47:14.775+00:00 | tool_call.calculate_daily_totals.start | {'input': {'meal_count': 3}}
+- 2026-04-23T08:47:14.775+00:00 | tool_call.calculate_daily_totals.complete | {'output': {'total_calories': 761, 'total_protein_g': 58, 'total_carbs_g': 63, 'total_fat_g': 26, 'meal_count': 3}}
+- 2026-04-23T08:47:14.775+00:00 | nutrition_analysis.complete | {'total_calories': 761, 'total_protein_g': 58, 'total_carbs_g': 63, 'total_fat_g': 26, 'meal_count': 3}
+- 2026-04-23T08:47:14.775+00:00 | format_output.start | {'input': {'meal_count': 3}}
+- 2026-04-23T08:47:14.775+00:00 | tool_call.estimate_total_calories.start | {'meal_count': 3}
+- 2026-04-23T08:47:14.775+00:00 | tool_call.estimate_total_calories.complete | {'result': 761}
+- 2026-04-23T08:49:48.777+00:00 | format_output.branch.target_comparison_skipped | {'input': {'target_calories': 0}}
+- 2026-04-23T08:49:48.788+00:00 | format_output.complete | {'output': {'output_length': 1903}}
+
+Inputs and outputs:
+- user_input: Check protein, carbs, and fat for these meals: tofu curry, quinoa salad, nuts
+- goal: maintenance
+- diet_type: vegan
+- ingredients: ['tofu curry', 'quinoa salad', 'nuts']
+- avoid_ingredients: []
+- target_calories: 0
+- meals: 3
+- final_output_length: 1903

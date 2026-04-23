@@ -253,7 +253,7 @@ Always use the estimate_nutrition tool to get accurate values.
             if not ingredients:
                 if not batch_called:
                     logger.warning("⚠️ No ingredients from Meal Agent, using batch extraction")
-                    logger.info(f"[Tool Call] _extract_ingredients_batch_with_llm")
+                    logger.info("[Tool Call] _extract_ingredients_batch_with_llm")
                     batch_ingredients = self._extract_ingredients_batch_with_llm(meal_descriptions)
                     logger.info(f"[Tool Result] {batch_ingredients}")
                     batch_called = True
@@ -335,7 +335,7 @@ Always use the estimate_nutrition tool to get accurate values.
             try:
                 advice = self.llm.invoke(prompt).strip()
                 meal["nutrition_advice"] = advice
-            except:
+            except Exception:
                 meal["nutrition_advice"] = "Balanced meal option."
         
         return base_result
