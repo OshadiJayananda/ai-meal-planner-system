@@ -119,6 +119,28 @@ Open:
 http://localhost:5173
 ```
 
+## Running The Desktop App
+
+The desktop frontend uses CustomTkinter and calls the local planner directly, so you do not need to run FastAPI or React for this mode.
+
+Start Ollama first:
+
+```powershell
+ollama run llama3
+```
+
+Install dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Run the desktop app:
+
+```powershell
+python desktop_app.py
+```
+
 ## Checklist
 
 Track assignment completion here:

@@ -21,6 +21,7 @@ DEFAULT_COORDINATOR_RESPONSE = {
 
 JSON_OBJECT_PATTERN = re.compile(r"\{.*\}", re.DOTALL)
 STEPS_ARRAY_PATTERN = re.compile(r'("steps"\s*:\s*)\[(.*?)\]', re.DOTALL)
+CALORIE_NUMBER_PATTERN = re.compile(r"\b(\d{3,4})\s*(?:kcal|calories?|cal)\b", re.IGNORECASE)
 
 # Use CrewAI-native Ollama configuration to satisfy Agent.llm validation.
 llm = LLM(model="ollama/llama3", base_url="http://localhost:11434")
@@ -131,6 +132,57 @@ class CoordinatorAgent:
         logger.info(f"[Tool Result] normalize_parsed_data output: {normalized}")
 
         return normalized
+
+    @staticmethod
+    def _split_food_items(text: str) -> list[str]:
+        cleaned = re.sub(r"\b(and|with|using)\b", ",", text, flags=re.IGNORECASE)
+        return [item.strip(" .") for item in cleaned.split(",") if item.strip(" .")]
+
+    @staticmethod
+    def _fallback_parse_user_input(user_input: str) -> dict:
+        lowered = user_input.lower()
+        target_match = CALORIE_NUMBER_PATTERN.search(user_input)
+
+        goal = "maintenance"
+        if "weight loss" in lowered or "lose weight" in lowered:
+            goal = "weight loss"
+        elif "muscle gain" in lowered or "gain muscle" in lowered or "high-protein" in lowered:
+            goal = "muscle gain"
+
+        diet_type = "none"
+        if "vegetarian" in lowered:
+            diet_type = "vegetarian"
+        elif "vegan" in lowered:
+            diet_type = "vegan"
+
+        ingredients: list[str] = []
+        meal_list_match = re.search(r"(?:these meals|my meals|meal list)\s*:\s*(.+)", user_input, re.IGNORECASE)
+        if meal_list_match:
+            ingredients = CoordinatorAgent._split_food_items(meal_list_match.group(1))
+        else:
+            ingredient_match = re.search(
+                r"(?:using|with)\s+(.+?)(?:,\s*(?:target|around|about|near|keep|avoid|no)\b|$)",
+                user_input,
+                re.IGNORECASE,
+            )
+            if ingredient_match:
+                ingredients = CoordinatorAgent._split_food_items(ingredient_match.group(1))
+
+        avoid_ingredients: list[str] = []
+        avoid_match = re.search(r"(?:avoid|no)\s+(.+?)(?:,\s*(?:target|around|about|near|keep)\b|$)", user_input, re.IGNORECASE)
+        if avoid_match:
+            avoid_ingredients = CoordinatorAgent._split_food_items(avoid_match.group(1))
+
+        parsed = normalize_parsed_data({
+            "goal": goal,
+            "ingredients": ingredients,
+            "avoid_ingredients": avoid_ingredients,
+            "target_calories": int(target_match.group(1)) if target_match else 0,
+            "diet_type": diet_type,
+            "steps": DEFAULT_STEPS,
+        })
+        parsed["steps"] = select_workflow_steps(user_input, parsed)
+        return parsed
 
     def run(self, user_input: str) -> dict:
         logger.info("Coordinator received user request")
@@ -264,7 +316,13 @@ class CoordinatorAgent:
         )
         
         crew = Crew(agents=[self.agent], tasks=[task], verbose=False)
-        result = crew.kickoff()
+        try:
+            result = crew.kickoff()
+        except Exception as exc:
+            logger.error("Coordinator LLM failed; using rule-based fallback parser: %s", exc)
+            parsed = self._fallback_parse_user_input(user_input)
+            logger.info(f"[FALLBACK DATA] {parsed}")
+            return parsed
 
         # Crew output type may vary by version; prefer `raw` when available.
         response_text = str(getattr(result, "raw", result))
