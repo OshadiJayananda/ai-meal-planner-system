@@ -91,6 +91,34 @@ Run only the Coordinator parser/unit test:
 python -m unittest .\tests\test_coordinator.py
 ```
 
+## Running The Web App
+
+Install backend dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Start the FastAPI backend:
+
+```powershell
+uvicorn api:app --reload --port 8000
+```
+
+In a second terminal, start the React frontend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
 ## Checklist
 
 Track assignment completion here:

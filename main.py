@@ -128,7 +128,17 @@ def setup_logging() -> None:
     )
 
 
-def run_meal_planner_system() -> str:
+def _normalize_profile_number(value: int | str | None) -> int:
+    if value in (None, ""):
+        return 0
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def run_meal_planner_request(user_input: str, age: int | str | None = 0, weight: int | str | None = 0) -> dict[str, Any]:
     """
     Run the complete Multi-Agent Meal Planner System.
     
@@ -154,13 +164,12 @@ def run_meal_planner_system() -> str:
     output_agent = OutputAgent()
 
     # ============================================
-    # STEP 1: Get user input and parse with Coordinator
+    # STEP 1: Parse request with Coordinator
     # ============================================
-    logger.info("📝 STEP 1: Getting user input...")
-    state.user_input, age, weight = get_user_input()
-
-    state.age = int(age) if age else 0
-    state.current_weight = int(weight) if weight else 0
+    logger.info("📝 STEP 1: Processing user input...")
+    state.user_input = user_input.strip()
+    state.age = _normalize_profile_number(age)
+    state.current_weight = _normalize_profile_number(weight)
 
     logger.info(f"✓ User input: {state.user_input}")
     logger.info(f"✓ Age: {state.age}")
@@ -347,7 +356,7 @@ def run_meal_planner_system() -> str:
     logger.info(f"Executed steps: {state.executed_steps}")
     logger.info("=" * 60)
 
-    _write_trace_report(state)
+    trace_report = _write_trace_report(state)
     
     print("\n" + "=" * 60)
     print("🍽️ YOUR PERSONALIZED MEAL PLAN")
@@ -355,7 +364,32 @@ def run_meal_planner_system() -> str:
     print(state.final_output)
     print("=" * 60)
     
-    return state.final_output
+    return {
+        "session_id": session_id,
+        "user_input": state.user_input,
+        "age": state.age,
+        "weight": state.current_weight,
+        "goal": state.goal,
+        "diet_type": state.diet_type,
+        "ingredients": state.ingredients,
+        "avoid_ingredients": state.avoid_ingredients,
+        "target_calories": state.target_calories,
+        "steps": state.steps,
+        "executed_steps": state.executed_steps,
+        "meals": state.meals,
+        "daily_totals": state.daily_totals,
+        "final_output": state.final_output,
+        "trace_events": state.trace_events,
+        "trace_report": trace_report,
+        "errors": state.errors,
+    }
+
+
+def run_meal_planner_system() -> str:
+    """Run the planner from the terminal using interactive input."""
+    user_input, age, weight = get_user_input()
+    result = run_meal_planner_request(user_input, age, weight)
+    return result["final_output"]
 
 if __name__ == "__main__":
     # Run the main system
