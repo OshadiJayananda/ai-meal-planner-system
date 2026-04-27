@@ -138,7 +138,12 @@ def _normalize_profile_number(value: int | str | None) -> int:
         return 0
 
 
-def run_meal_planner_request(user_input: str, age: int | str | None = 0, weight: int | str | None = 0) -> dict[str, Any]:
+def run_meal_planner_request(
+    user_input: str,
+    age: int | str | None = 0,
+    weight: int | str | None = 0,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
     """
     Run the complete Multi-Agent Meal Planner System.
     
@@ -163,6 +168,14 @@ def run_meal_planner_request(user_input: str, age: int | str | None = 0, weight:
     nutrition_agent = NutritionAgent()
     output_agent = OutputAgent()
 
+    def report_progress(stage: str, message: str, details: dict[str, Any] | None = None) -> None:
+        if progress_callback:
+            progress_callback({
+                "stage": stage,
+                "message": message,
+                "details": details or {},
+            })
+
     # ============================================
     # STEP 1: Parse request with Coordinator
     # ============================================
@@ -177,6 +190,11 @@ def run_meal_planner_request(user_input: str, age: int | str | None = 0, weight:
 
     session_id = create_session(state.user_input, state.age, state.current_weight)
 
+    report_progress(
+        "coordinator",
+        "Analyze user input",
+        {"request": state.user_input, "age": state.age, "weight": state.current_weight},
+    )
     _record_trace(state, "coordinator.start", {"input": state.user_input})
     parsed = coordinator.run(state.user_input)
 
@@ -206,10 +224,28 @@ def run_meal_planner_request(user_input: str, age: int | str | None = 0, weight:
     logger.info(f"✓ Ingredients: {state.ingredients}")
     logger.info(f"✓ Steps selected by coordinator: {state.steps}")
 
+    report_progress(
+        "coordinator",
+        "User input analyzed",
+        {
+            "goal": state.goal,
+            "diet_type": state.diet_type,
+            "ingredients": state.ingredients,
+            "avoid_ingredients": state.avoid_ingredients,
+            "target_calories": state.target_calories,
+            "steps": state.steps,
+        },
+    )
+
     save_coordinator(session_id, parsed)
 
     def execute_meal_generation() -> None:
         logger.info("🍳 STEP: meal_generation started")
+        report_progress(
+            "meal_generation",
+            "Generating meal plan",
+            {"goal": state.goal, "ingredients": state.ingredients, "diet_type": state.diet_type},
+        )
         _record_trace(
             state,
             "meal_generation.start",
@@ -237,16 +273,29 @@ def run_meal_planner_request(user_input: str, age: int | str | None = 0, weight:
 
         save_meals(session_id, state.meals)
         _record_trace(state, "meal_generation.complete", {"meal_count": len(state.meals)})
+        report_progress(
+            "meal_generation",
+            "Meal plan generated",
+            {"meals": [meal.get("name", "Unnamed meal") for meal in state.meals]},
+        )
 
     def execute_nutrition_analysis() -> None:
         logger.info("🧮 STEP: nutrition_analysis started")
-
         if not state.meals and state.ingredients:
             logger.info("🔧 Converting ingredients → meals for analysis")
             state.meals = [
                 {"name": item, "description": f"{item} meal"}
                 for item in state.ingredients
             ]
+
+        report_progress(
+            "nutrition_analysis",
+            "Analyzing nutrition",
+            {
+                "meal_count": len(state.meals),
+                "meals": [meal.get("name", "Meal") for meal in state.meals],
+            },
+        )
 
         _record_trace(state, "nutrition_analysis.start", {"input": {"meal_count": len(state.meals)}})
 
@@ -264,9 +313,19 @@ def run_meal_planner_request(user_input: str, age: int | str | None = 0, weight:
         save_nutrition(session_id, state.daily_totals)
 
         _record_trace(state, "nutrition_analysis.complete", daily_totals)
+        report_progress(
+            "nutrition_analysis",
+            "Nutrition analysis complete",
+            daily_totals,
+        )
 
     def execute_format_output() -> None:
         logger.info("📝 STEP: format_output started")
+        report_progress(
+            "format_output",
+            "Formatting final output",
+            {"meal_count": len(state.meals)},
+        )
         _record_trace(state, "format_output.start", {"input": {"meal_count": len(state.meals)}})
 
         # Compute totals first so they are available to the output formatter
@@ -317,6 +376,11 @@ def run_meal_planner_request(user_input: str, age: int | str | None = 0, weight:
 
         logger.info("✓ format_output completed")
         _record_trace(state, "format_output.complete", {"output": {"output_length": len(state.final_output)}})
+        report_progress(
+            "format_output",
+            "Final output formatted",
+            {"output_preview": state.final_output[:600]},
+        )
 
     step_handlers: dict[str, Callable[[], None]] = {
         "meal_generation": execute_meal_generation,

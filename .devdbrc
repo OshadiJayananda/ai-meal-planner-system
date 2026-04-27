@@ -1,0 +1,6 @@
+[
+  {
+    "type": "sqlite",
+    "path": "c:\\github\\ai-meal-planner-system\\meal_planner.db"
+  }
+]
