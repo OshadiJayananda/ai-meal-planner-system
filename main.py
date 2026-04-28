@@ -128,7 +128,22 @@ def setup_logging() -> None:
     )
 
 
-def run_meal_planner_system() -> str:
+def _normalize_profile_number(value: int | str | None) -> int:
+    if value in (None, ""):
+        return 0
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def run_meal_planner_request(
+    user_input: str,
+    age: int | str | None = 0,
+    weight: int | str | None = 0,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
     """
     Run the complete Multi-Agent Meal Planner System.
     
@@ -153,14 +168,21 @@ def run_meal_planner_system() -> str:
     nutrition_agent = NutritionAgent()
     output_agent = OutputAgent()
 
-    # ============================================
-    # STEP 1: Get user input and parse with Coordinator
-    # ============================================
-    logger.info("📝 STEP 1: Getting user input...")
-    state.user_input, age, weight = get_user_input()
+    def report_progress(stage: str, message: str, details: dict[str, Any] | None = None) -> None:
+        if progress_callback:
+            progress_callback({
+                "stage": stage,
+                "message": message,
+                "details": details or {},
+            })
 
-    state.age = int(age) if age else 0
-    state.current_weight = int(weight) if weight else 0
+    # ============================================
+    # STEP 1: Parse request with Coordinator
+    # ============================================
+    logger.info("📝 STEP 1: Processing user input...")
+    state.user_input = user_input.strip()
+    state.age = _normalize_profile_number(age)
+    state.current_weight = _normalize_profile_number(weight)
 
     logger.info(f"✓ User input: {state.user_input}")
     logger.info(f"✓ Age: {state.age}")
@@ -168,6 +190,11 @@ def run_meal_planner_system() -> str:
 
     session_id = create_session(state.user_input, state.age, state.current_weight)
 
+    report_progress(
+        "coordinator",
+        "Analyze user input",
+        {"request": state.user_input, "age": state.age, "weight": state.current_weight},
+    )
     _record_trace(state, "coordinator.start", {"input": state.user_input})
     parsed = coordinator.run(state.user_input)
 
@@ -197,10 +224,28 @@ def run_meal_planner_system() -> str:
     logger.info(f"✓ Ingredients: {state.ingredients}")
     logger.info(f"✓ Steps selected by coordinator: {state.steps}")
 
+    report_progress(
+        "coordinator",
+        "User input analyzed",
+        {
+            "goal": state.goal,
+            "diet_type": state.diet_type,
+            "ingredients": state.ingredients,
+            "avoid_ingredients": state.avoid_ingredients,
+            "target_calories": state.target_calories,
+            "steps": state.steps,
+        },
+    )
+
     save_coordinator(session_id, parsed)
 
     def execute_meal_generation() -> None:
         logger.info("🍳 STEP: meal_generation started")
+        report_progress(
+            "meal_generation",
+            "Generating meal plan",
+            {"goal": state.goal, "ingredients": state.ingredients, "diet_type": state.diet_type},
+        )
         _record_trace(
             state,
             "meal_generation.start",
@@ -228,16 +273,29 @@ def run_meal_planner_system() -> str:
 
         save_meals(session_id, state.meals)
         _record_trace(state, "meal_generation.complete", {"meal_count": len(state.meals)})
+        report_progress(
+            "meal_generation",
+            "Meal plan generated",
+            {"meals": [meal.get("name", "Unnamed meal") for meal in state.meals]},
+        )
 
     def execute_nutrition_analysis() -> None:
         logger.info("🧮 STEP: nutrition_analysis started")
-
         if not state.meals and state.ingredients:
             logger.info("🔧 Converting ingredients → meals for analysis")
             state.meals = [
                 {"name": item, "description": f"{item} meal"}
                 for item in state.ingredients
             ]
+
+        report_progress(
+            "nutrition_analysis",
+            "Analyzing nutrition",
+            {
+                "meal_count": len(state.meals),
+                "meals": [meal.get("name", "Meal") for meal in state.meals],
+            },
+        )
 
         _record_trace(state, "nutrition_analysis.start", {"input": {"meal_count": len(state.meals)}})
 
@@ -255,9 +313,19 @@ def run_meal_planner_system() -> str:
         save_nutrition(session_id, state.daily_totals)
 
         _record_trace(state, "nutrition_analysis.complete", daily_totals)
+        report_progress(
+            "nutrition_analysis",
+            "Nutrition analysis complete",
+            daily_totals,
+        )
 
     def execute_format_output() -> None:
         logger.info("📝 STEP: format_output started")
+        report_progress(
+            "format_output",
+            "Formatting final output",
+            {"meal_count": len(state.meals)},
+        )
         _record_trace(state, "format_output.start", {"input": {"meal_count": len(state.meals)}})
 
         # Compute totals first so they are available to the output formatter
@@ -308,6 +376,11 @@ def run_meal_planner_system() -> str:
 
         logger.info("✓ format_output completed")
         _record_trace(state, "format_output.complete", {"output": {"output_length": len(state.final_output)}})
+        report_progress(
+            "format_output",
+            "Final output formatted",
+            {"output_preview": state.final_output[:600]},
+        )
 
     step_handlers: dict[str, Callable[[], None]] = {
         "meal_generation": execute_meal_generation,
@@ -347,7 +420,7 @@ def run_meal_planner_system() -> str:
     logger.info(f"Executed steps: {state.executed_steps}")
     logger.info("=" * 60)
 
-    _write_trace_report(state)
+    trace_report = _write_trace_report(state)
     
     print("\n" + "=" * 60)
     print("🍽️ YOUR PERSONALIZED MEAL PLAN")
@@ -355,7 +428,32 @@ def run_meal_planner_system() -> str:
     print(state.final_output)
     print("=" * 60)
     
-    return state.final_output
+    return {
+        "session_id": session_id,
+        "user_input": state.user_input,
+        "age": state.age,
+        "weight": state.current_weight,
+        "goal": state.goal,
+        "diet_type": state.diet_type,
+        "ingredients": state.ingredients,
+        "avoid_ingredients": state.avoid_ingredients,
+        "target_calories": state.target_calories,
+        "steps": state.steps,
+        "executed_steps": state.executed_steps,
+        "meals": state.meals,
+        "daily_totals": state.daily_totals,
+        "final_output": state.final_output,
+        "trace_events": state.trace_events,
+        "trace_report": trace_report,
+        "errors": state.errors,
+    }
+
+
+def run_meal_planner_system() -> str:
+    """Run the planner from the terminal using interactive input."""
+    user_input, age, weight = get_user_input()
+    result = run_meal_planner_request(user_input, age, weight)
+    return result["final_output"]
 
 if __name__ == "__main__":
     # Run the main system
