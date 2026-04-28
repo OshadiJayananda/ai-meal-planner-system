@@ -29,15 +29,6 @@ Expected steps: ["nutrition_analysis", "format_output"]
 16) Estimate total calories for this meal list: salmon bowl, veggie omelet, chickpea wrap
 17) Analyze nutrition of these meals and summarize daily totals
 
-Case 4: Minimal meal generation only
-Expected steps: ["meal_generation"]
-
-18) Just give me meal ideas
-19) Only meal ideas with chicken and rice
-20) Just meals for vegetarian lunch
-21) Give me meal ideas only, no extra details
-22) I only want quick dinner meal ideas
-
 Mixed and edge-case prompts
 
 23) I want meal ideas and if possible show calories

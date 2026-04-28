@@ -1,5 +1,6 @@
 import queue
 import threading
+import time
 import traceback
 import textwrap
 from typing import Any
@@ -26,9 +27,9 @@ ctk.set_default_color_theme("green")
 
 
 SAMPLE_PROMPTS = [
-    "Create a vegetarian meal plan using beans and spinach, target 1500 kcal",
     "I need a weight loss meal plan with chicken and rice around 1400 calories",
-    "Analyze calories of these meals: oatmeal with banana, chicken stir-fry, lentil soup",
+    "I want a weight loss meal plan using rice and chicken",
+    "Analyze calories of these meals: grilled chicken salad, tuna sandwich, yogurt bowl",
 ]
 
 
@@ -48,6 +49,8 @@ class MealPlannerDesktopApp(ctk.CTk):
         self.step_caption_labels: dict[str, ctk.CTkLabel] = {}
         self.workflow_stage_keys: list[str] = []
         self.selected_session_id: int | None = None
+        self.request_started_at: float | None = None
+        self.elapsed_timer_id: str | None = None
 
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
@@ -88,6 +91,7 @@ class MealPlannerDesktopApp(ctk.CTk):
         self.generate_button.configure(state="disabled", text="Generating...")
         self.clear_button.grid_remove()
         self.status_label.configure(text="Agents are preparing your plan...", text_color="#52615a")
+        self._start_elapsed_timer()
         self._sync_request_preview()
         self.metrics_frame.grid_remove()
         self.request_focus_frame.grid()
@@ -136,6 +140,7 @@ class MealPlannerDesktopApp(ctk.CTk):
         self.generate_button.configure(state="normal", text="Generate Meal Plan")
 
         if status == "error":
+            self._stop_elapsed_timer()
             self.status_label.configure(text="Generation failed. Check Ollama and terminal logs.", text_color="#a8071a")
             self.workflow_status.configure(text="Generation failed. Check the error details below.")
             set_workflow_expanded(self, False)
@@ -164,6 +169,55 @@ class MealPlannerDesktopApp(ctk.CTk):
             self.progress_events.append(event)
 
         show_text_output(self, self._format_progress_log(event))
+
+    def _start_elapsed_timer(self) -> None:
+        if self.elapsed_timer_id is not None:
+            self.after_cancel(self.elapsed_timer_id)
+
+        self.request_started_at = time.monotonic()
+        self.elapsed_time_label.configure(text="Elapsed time: 00:00")
+        self.elapsed_time_label.grid()
+        self._refresh_elapsed_timer()
+
+    def _refresh_elapsed_timer(self) -> None:
+        if self.request_started_at is None:
+            self.elapsed_timer_id = None
+            return
+
+        elapsed_seconds = int(time.monotonic() - self.request_started_at)
+        self.elapsed_time_label.configure(text=f"Elapsed time: {self._format_elapsed_time(elapsed_seconds)}")
+        self.elapsed_timer_id = self.after(500, self._refresh_elapsed_timer)
+
+    def _reset_elapsed_timer(self) -> None:
+        if self.elapsed_timer_id is not None:
+            self.after_cancel(self.elapsed_timer_id)
+            self.elapsed_timer_id = None
+
+        self.request_started_at = None
+        self.elapsed_time_label.configure(text="Elapsed time: 00:00")
+        self.elapsed_time_label.grid_remove()
+
+    def _stop_elapsed_timer(self) -> None:
+        if self.elapsed_timer_id is not None:
+            self.after_cancel(self.elapsed_timer_id)
+            self.elapsed_timer_id = None
+
+        if self.request_started_at is None:
+            return
+
+        elapsed_seconds = int(time.monotonic() - self.request_started_at)
+        self.elapsed_time_label.configure(text=f"Completed in: {self._format_elapsed_time(elapsed_seconds)}")
+        self.request_started_at = None
+
+    @staticmethod
+    def _format_elapsed_time(total_seconds: int) -> str:
+        minutes, seconds = divmod(max(total_seconds, 0), 60)
+        hours, minutes = divmod(minutes, 60)
+
+        if hours:
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+        return f"{minutes:02d}:{seconds:02d}"
 
     def _update_request_hint(self, stage: str, details: dict[str, Any]) -> None:
         if stage != "coordinator" or not details:
@@ -323,6 +377,7 @@ class MealPlannerDesktopApp(ctk.CTk):
             self.workflow_label.configure(text=f"Completed workflow: {readable_steps}")
 
         show_result_output(self, result.get("final_output", ""))
+        self._stop_elapsed_timer()
         self.status_label.configure(text=f"Saved session #{result.get('session_id')}", text_color="#246b45")
         self.selected_session_id = result.get("session_id")
         self.clear_button.configure(state="normal")
@@ -347,6 +402,7 @@ class MealPlannerDesktopApp(ctk.CTk):
 
         self.workflow_status.configure(text="Ready to analyze your meal request.")
         self.status_label.configure(text="Ready", text_color="#52615a")
+        self._reset_elapsed_timer()
 
         self.metric_labels["calories"].configure(text="0")
         self.metric_labels["protein"].configure(text="0")
@@ -384,6 +440,7 @@ class MealPlannerDesktopApp(ctk.CTk):
             card.configure(fg_color="#ffffff", border_color="#d8e1d9")
 
     def _load_session_output(self, session_id: int) -> None:
+        self._reset_elapsed_timer()
         detail = load_session_detail(session_id)
         if detail is None:
             self.status_label.configure(text=f"Session #{session_id} was not found.", text_color="#a8071a")

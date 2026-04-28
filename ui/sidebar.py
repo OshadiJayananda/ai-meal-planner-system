@@ -110,12 +110,22 @@ def build_sidebar(app: Any, sample_prompts: list[str]) -> None:
     )
     app.status_label.grid(row=9, column=0, padx=24, pady=(0, 14), sticky="ew")
 
+    app.elapsed_time_label = ctk.CTkLabel(
+        app.sidebar,
+        text="Elapsed time: 00:00",
+        text_color="#52615a",
+        anchor="w",
+        justify="left",
+    )
+    app.elapsed_time_label.grid(row=10, column=0, padx=24, pady=(0, 14), sticky="ew")
+    app.elapsed_time_label.grid_remove()
+
     history_label = ctk.CTkLabel(app.sidebar, text="Recent sessions", font=ctk.CTkFont(weight="bold"), anchor="w")
-    history_label.grid(row=10, column=0, padx=24, pady=(8, 8), sticky="ew")
+    history_label.grid(row=11, column=0, padx=24, pady=(8, 8), sticky="ew")
 
     app.history_box = ctk.CTkScrollableFrame(app.sidebar, height=150, fg_color="#e4ebe5", corner_radius=8)
-    app.history_box.grid(row=11, column=0, padx=24, pady=(0, 20), sticky="nsew")
-    app.sidebar.grid_rowconfigure(11, weight=1)
+    app.history_box.grid(row=12, column=0, padx=24, pady=(0, 20), sticky="nsew")
+    app.sidebar.grid_rowconfigure(12, weight=1)
 
 
 def build_session_history_card(app: Any, session: dict[str, Any]) -> None:
