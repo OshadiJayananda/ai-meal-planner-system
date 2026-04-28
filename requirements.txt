@@ -1,7 +1,5 @@
 crewai 
 langchain-community 
 ollama
-fastapi
-uvicorn
-pydantic
 customtkinter
+pyinstaller
