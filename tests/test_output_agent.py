@@ -70,7 +70,7 @@ class TestOutputAgent(unittest.TestCase):
         prompt = self.agent._build_prompt(data)
 
         self.assertIn("Has Nutrition Data: False", prompt)
-        self.assertIn("DO NOT include Nutrition Summary", prompt)
+        self.assertIn("Do NOT show calories/macros", prompt)
 
 
 if __name__ == "__main__":

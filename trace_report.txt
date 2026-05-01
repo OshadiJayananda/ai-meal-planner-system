@@ -1,8 +1,8 @@
 TRACE REPORT
 ============================================================
-Generated at: 2026-05-01T12:48:23.890+00:00
+Generated at: 2026-05-01T14:13:30.542+00:00
 Total events: 11
-Trace span: 2026-05-01T12:46:16.086000+00:00 -> 2026-05-01T12:48:23.888000+00:00 (127802 ms)
+Trace span: 2026-05-01T14:08:48.081000+00:00 -> 2026-05-01T14:13:30.529000+00:00 (282448 ms)
 Executed steps: meal_generation, nutrition_analysis, format_output
 Errors: 0
 
@@ -20,24 +20,24 @@ Event counts:
 - tool_call.estimate_total_calories.start: 1
 
 Timeline:
-- 2026-05-01T12:46:16.086+00:00 | coordinator.start | {'input': 'High-protein daily meal plan with chicken, eggs, and rice, 1700 cal max'}
-- 2026-05-01T12:46:44.292+00:00 | coordinator.complete | {'input': 'High-protein daily meal plan with chicken, eggs, and rice, 1700 cal max', 'goal': 'muscle gain', 'diet_type': 'none', 'target_calories': 1700, 'age': 76, 'current_weight': 56, 'steps': ['meal_generation', 'nutrition_analysis', 'format_output']}
-- 2026-05-01T12:46:44.297+00:00 | meal_generation.start | {'input': {'goal': 'muscle gain', 'ingredients': ['chicken', 'eggs', 'rice'], 'diet_type': 'none'}}
-- 2026-05-01T12:47:32.750+00:00 | meal_generation.complete | {'meal_count': 3}
-- 2026-05-01T12:47:32.751+00:00 | nutrition_analysis.start | {'input': {'meal_count': 3}}
-- 2026-05-01T12:47:32.757+00:00 | nutrition_analysis.complete | {'total_calories': 1060, 'total_protein_g': 142, 'total_carbs_g': 57, 'total_fat_g': 25, 'meal_count': 3}
-- 2026-05-01T12:47:32.757+00:00 | format_output.start | {'input': {'meal_count': 3}}
-- 2026-05-01T12:47:32.757+00:00 | tool_call.estimate_total_calories.start | {'meal_count': 3}
-- 2026-05-01T12:47:32.758+00:00 | tool_call.estimate_total_calories.complete | {'result': 1060}
-- 2026-05-01T12:48:23.871+00:00 | format_output.branch.target_comparison | {'input': {'target_calories': 1700, 'actual_calories': 1060}, 'output': {'delta': -640, 'direction': 'below'}}
-- 2026-05-01T12:48:23.888+00:00 | format_output.complete | {'output': {'output_length': 1600}}
+- 2026-05-01T14:08:48.081+00:00 | coordinator.start | {'input': 'I need a weight loss meal plan with chicken and rice around 1400 calories'}
+- 2026-05-01T14:10:10.275+00:00 | coordinator.complete | {'input': 'I need a weight loss meal plan with chicken and rice around 1400 calories', 'goal': 'weight loss', 'diet_type': 'none', 'target_calories': 1400, 'age': 60, 'current_weight': 70, 'steps': ['meal_generation', 'nutrition_analysis', 'format_output']}
+- 2026-05-01T14:10:13.574+00:00 | meal_generation.start | {'input': {'goal': 'weight loss', 'ingredients': ['chicken', 'rice'], 'diet_type': 'none'}}
+- 2026-05-01T14:11:58.590+00:00 | meal_generation.complete | {'meal_count': 3}
+- 2026-05-01T14:11:58.592+00:00 | nutrition_analysis.start | {'input': {'meal_count': 3}}
+- 2026-05-01T14:11:58.606+00:00 | nutrition_analysis.complete | {'total_calories': 1125, 'total_protein_g': 122, 'total_carbs_g': 91, 'total_fat_g': 27, 'meal_count': 3}
+- 2026-05-01T14:11:58.606+00:00 | format_output.start | {'input': {'meal_count': 3}}
+- 2026-05-01T14:11:58.606+00:00 | tool_call.estimate_total_calories.start | {'meal_count': 3}
+- 2026-05-01T14:11:58.607+00:00 | tool_call.estimate_total_calories.complete | {'result': 1125}
+- 2026-05-01T14:13:30.422+00:00 | format_output.branch.target_comparison | {'input': {'target_calories': 1400, 'actual_calories': 1125}, 'output': {'delta': -275, 'direction': 'below'}}
+- 2026-05-01T14:13:30.529+00:00 | format_output.complete | {'output': {'output_length': 1681}}
 
 Inputs and outputs:
-- user_input: High-protein daily meal plan with chicken, eggs, and rice, 1700 cal max
-- goal: muscle gain
+- user_input: I need a weight loss meal plan with chicken and rice around 1400 calories
+- goal: weight loss
 - diet_type: none
-- ingredients: ['chicken', 'eggs', 'rice']
+- ingredients: ['chicken', 'rice']
 - avoid_ingredients: []
-- target_calories: 1700
+- target_calories: 1400
 - meals: 3
-- final_output_length: 1600
+- final_output_length: 1681
