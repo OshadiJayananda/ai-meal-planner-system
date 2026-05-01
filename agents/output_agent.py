@@ -64,6 +64,7 @@ class OutputAgent:
         meals = data.get("meal_plan", [])
         totals = data.get("daily_totals", {})
         has_nutrition = data.get("has_nutrition", False)
+        alignment_note = data.get("calorie_alignment", "")
 
         # ============================================
         # Build meal section dynamically
@@ -150,6 +151,19 @@ Structure your response EXACTLY as follows:
 
 🍳 Meal Plan
 
+For EACH meal, you MUST follow EXACTLY this format:
+
+[Emoji] Meal Name
+- Type: ...
+- Description: ...
+- Ingredients: ...
+- Portion: ...
+- Goal Fit: ...
+- Alternatives: ... (if available)
+- Calories: ... (ONLY if available)
+
+Do NOT summarize meals into one line.
+
 (IMPORTANT: Determine format based on number of meals)
 
 - If Total Meals = 3:
@@ -167,6 +181,7 @@ Structure your response EXACTLY as follows:
 - Protein: ...
 - Carbs: ...
 - Fat: ...
+- Alignment: {alignment_note}
 
 💡 Health Recommendations
 - Provide simple, relevant advice

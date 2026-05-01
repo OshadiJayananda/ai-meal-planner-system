@@ -11,7 +11,12 @@ from agents.meal_agent import MealAgent
 from agents.nutrition_agent import NutritionAgent
 from agents.output_agent import OutputAgent
 from state import PlannerState
-from tools.format_tool import add_footer
+from tools.format_tool import (
+    add_footer,
+    validate_meal_data,
+    normalize_meal_fields,
+    check_calorie_alignment
+)
 from tools.input_tool import get_user_input
 from tools.nutrition_tool import estimate_total_calories
 import sys
@@ -253,6 +258,7 @@ def run_meal_planner_request(
         )
 
         state.meals = meal_agent.run(state.parsed_request, state.age, state.current_weight)
+        print(f"Generated meal: {state.meals}")
 
         # Non-trivial branch: enforce vegetarian constraint before downstream analysis.
         if state.diet_type == "vegetarian":
@@ -332,7 +338,16 @@ def run_meal_planner_request(
         _trace_tool_event(state, "estimate_total_calories", "start", {"meal_count": len(state.meals)})
         total_calories = estimate_total_calories(state.meals)
         _trace_tool_event(state, "estimate_total_calories", "complete", {"result": total_calories})
+        state.meals = validate_meal_data(state.meals)
+        state.meals = normalize_meal_fields(state.meals)
+        print(f"total_calories: {total_calories}")
+        print(f"target_calories: {state.target_calories}")
 
+        alignment_note = check_calorie_alignment(
+            total_calories,
+            state.target_calories
+        )
+        
         base_output = output_agent.run({
             "user_profile": {
                 "goal": state.goal,
@@ -343,7 +358,8 @@ def run_meal_planner_request(
             },
             "meal_plan": state.meals,
             "daily_totals": state.daily_totals if state.daily_totals else {},
-            "has_nutrition": bool(state.daily_totals)
+            "has_nutrition": bool(state.daily_totals),
+            "calorie_alignment": alignment_note
         })
 
         footer_lines = [f"Total Estimated Calories: {total_calories} kcal"]
