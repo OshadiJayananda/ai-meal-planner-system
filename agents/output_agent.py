@@ -38,51 +38,161 @@ class OutputAgent:
 
         except Exception as e:
             return f"⚠️ Error generating output: {e}"
+        
+    def _format_user_profile(self, user: Dict[str, Any]) -> str:
+        lines = []
+
+        if user.get("goal") and user.get("goal") != "none":
+            lines.append(f"- Goal: {user['goal']}")
+
+        if user.get("diet_type") and user.get("diet_type") != "none":
+            lines.append(f"- Diet Type: {user['diet_type']}")
+
+        if isinstance(user.get("target_calories"), int) and user.get("target_calories", 0) > 0:
+            lines.append(f"- Target Calories: {user['target_calories']} kcal")
+
+        if user.get("ingredients"):
+            lines.append(f"- Preferred Ingredients: {', '.join(user['ingredients'])}")
+
+        if user.get("avoid_ingredients"):
+            lines.append(f"- Avoid: {', '.join(user['avoid_ingredients'])}")
+
+        return "\n".join(lines) if lines else "- No specific preferences provided"
 
     def _build_prompt(self, data: Dict[str, Any]) -> str:
         user = data.get("user_profile", {})
         meals = data.get("meal_plan", [])
         totals = data.get("daily_totals", {})
+        has_nutrition = data.get("has_nutrition", False)
 
-        # Build meal section
+        # ============================================
+        # Build meal section dynamically
+        # ============================================
         meal_text = ""
         for m in meals:
-            meal_text += f"""
-{m.get('name', 'Meal')}:
-- Description: {m.get('description')}
-- Calories: {m.get('nutrition', {}).get('calories')} kcal
-- Protein: {m.get('nutrition', {}).get('protein_g')} g
-- Carbs: {m.get('nutrition', {}).get('carbs_g')} g
-- Fat: {m.get('nutrition', {}).get('fat_g')} g
-"""
+            meal_text += f"\nMeal Name: {m.get('name')}\n"
+            meal_text += f"Type: {m.get('type')}\n"
+            meal_text += f"Description: {m.get('description')}\n"
 
+            if m.get("ingredients_used"):
+                meal_text += f"Ingredients Used: {', '.join(m['ingredients_used'])}\n"
+
+            if m.get("portion_guidance"):
+                meal_text += f"Portion Guidance: {m.get('portion_guidance')}\n"
+
+            if m.get("goal_fit"):
+                meal_text += f"Goal Fit: {m.get('goal_fit')}\n"
+
+            if m.get("alternatives"):
+                meal_text += f"Alternatives: {', '.join(m['alternatives'])}\n"
+
+            if has_nutrition and m.get("nutrition"):
+                meal_text += f"Calories: {m['nutrition'].get('calories')} kcal\n"
+                meal_text += f"Protein: {m['nutrition'].get('protein_g')} g\n"
+                meal_text += f"Carbs: {m['nutrition'].get('carbs_g')} g\n"
+                meal_text += f"Fat: {m['nutrition'].get('fat_g')} g\n"
+
+        # ============================================
+        # Nutrition section (ONLY if available)
+        # ============================================
+        if has_nutrition:
+            nutrition_section = f"""
+    Daily Totals:
+    - Calories: {totals.get('total_calories', 'N/A')} kcal
+    - Protein: {totals.get('total_protein_g', 'N/A')} g
+    - Carbs: {totals.get('total_carbs_g', 'N/A')} g
+    - Fat: {totals.get('total_fat_g', 'N/A')} g
+    """
+            nutrition_instruction = "- Include a Nutrition Summary section"
+        else:
+            nutrition_section = ""
+            nutrition_instruction = "- DO NOT include Nutrition Summary\n- DO NOT mention calories or macros"
+
+        # ============================================
+        # Final Prompt
+        # ============================================
         return f"""
-Generate a professional meal plan.
+Generate a clear and structured meal plan based ONLY on the provided data.
+
+==============================
+INPUT CONTEXT
+==============================
 
 User Profile:
-- Goal: {user.get('goal')}
-- Diet Type: {user.get('diet_type')}
-- Target Calories: {user.get('target_calories')}
-- Preferred Ingredients: {user.get('ingredients')}
-- Avoid: {user.get('avoid_ingredients')}
+{self._format_user_profile(user)}
 
-Meals:
+Meals Provided:
 {meal_text}
 
-Daily Totals:
-- Calories: {totals.get('total_calories')} kcal
-- Protein: {totals.get('total_protein_g')} g
-- Carbs: {totals.get('total_carbs_g')} g
-- Fat: {totals.get('total_fat_g')} g
+{nutrition_section}
 
-Instructions:
-1. Use clear headings
-2. Sections:
-   - Profile Summary
-   - Meal Plan
-   - Nutrition Summary
-   - Health Recommendations
-3. Use bullet points
-4. Keep language simple for elderly users
-5. Give advice based on goal and diet type
+Nutrition Availability:
+- Has Nutrition Data: {has_nutrition}
+
+Total Meals Provided: {len(meals)}
+
+==============================
+INSTRUCTIONS
+==============================
+
+Structure your response EXACTLY as follows:
+
+==============================
+🍽️ PERSONALIZED MEAL PLAN
+==============================
+
+👤 Profile Summary
+- Goal: ...
+- Diet Type: ...
+- Target Calories: ...
+- Preferred Ingredients: ...
+- Avoid: ...
+
+🍳 Meal Plan
+
+(IMPORTANT: Determine format based on number of meals)
+
+- If Total Meals = 3:
+  → Treat as ONE DAY plan:
+    - Use the "Type" field to classify meals:
+        Breakfast → 🥣
+        Lunch → 🍛
+        Dinner → 🍲
+        Snack → 🥜
+- If Total Meals > 3:
+  → List meals sequentially WITHOUT creating days unless explicitly provided
+
+📊 Nutrition Summary (ONLY if Has Nutrition Data = True)
+- Calories: ...
+- Protein: ...
+- Carbs: ...
+- Fat: ...
+
+💡 Health Recommendations
+- Provide simple, relevant advice
+
+==============================
+STRICT RULES (VERY IMPORTANT)
+==============================
+- DO NOT rewrite or summarize meals
+- DO NOT change meal names
+- DO NOT invent new descriptions
+- You MUST use ALL provided fields (type, portion, goal_fit, alternatives)
+- You are formatting data, NOT generating new content
+- ONLY use the meals provided in input
+- DO NOT create additional meals or days
+- DO NOT assume a weekly plan
+- DO NOT generate placeholders like:
+  ❌ [Insert meal]
+  ❌ "and so on"
+- DO NOT fabricate missing data
+- If nutrition data is NOT available:
+  ❌ Do NOT show calories/macros anywhere
+- If nutrition data IS available:
+  ✅ Show calories per meal AND totals
+- Keep output clean, spaced, and easy to read
+- Use emojis for section headers
+- Add one blank line between sections
+- If a field exists in input, it MUST appear in output
+- If a field does NOT exist, do NOT create it
 """

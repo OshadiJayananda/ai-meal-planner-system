@@ -342,12 +342,8 @@ def run_meal_planner_request(
                 "avoid_ingredients": state.avoid_ingredients,
             },
             "meal_plan": state.meals,
-            "daily_totals": {
-                "total_calories": total_calories,
-                "total_protein_g": state.daily_totals.get("total_protein_g", 0),
-                "total_carbs_g": state.daily_totals.get("total_carbs_g", 0),
-                "total_fat_g": state.daily_totals.get("total_fat_g", 0),
-            }
+            "daily_totals": state.daily_totals if state.daily_totals else {},
+            "has_nutrition": bool(state.daily_totals)
         })
 
         footer_lines = [f"Total Estimated Calories: {total_calories} kcal"]
@@ -369,8 +365,11 @@ def run_meal_planner_request(
             footer_lines.append("Target Comparison: skipped (no explicit calorie target)")
             _record_trace(state, "format_output.branch.target_comparison_skipped", {"input": {"target_calories": 0}})
 
-        state.final_output = add_footer(base_output, total_calories)
-        state.final_output += "\n" + "\n".join(footer_lines[1:])
+        has_nutrition = state.meals and "nutrition" in state.meals[0]
+
+        calories_for_tool = total_calories if has_nutrition else None
+
+        state.final_output = add_footer(base_output, calories_for_tool)
 
         save_final_output(session_id, state.final_output)
 
@@ -422,9 +421,9 @@ def run_meal_planner_request(
 
     trace_report = _write_trace_report(state)
     
-    print("\n" + "=" * 60)
-    print("🍽️ YOUR PERSONALIZED MEAL PLAN")
-    print("=" * 60)
+    # print("\n" + "=" * 60)
+    # print("🍽️ YOUR PERSONALIZED MEAL PLAN")
+    # print("=" * 60)
     print(state.final_output)
     print("=" * 60)
     
