@@ -1,0 +1,39 @@
+TRACE REPORT
+============================================================
+Generated at: 2026-04-28T04:51:34.585+00:00
+Total events: 9
+Trace span: 2026-04-28T04:45:06.337000+00:00 -> 2026-04-28T04:51:34.583000+00:00 (388246 ms)
+Executed steps: meal_generation, format_output
+Errors: 0
+
+Event counts:
+- coordinator.complete: 1
+- coordinator.start: 1
+- format_output.branch.target_comparison_skipped: 1
+- format_output.complete: 1
+- format_output.start: 1
+- meal_generation.complete: 1
+- meal_generation.start: 1
+- tool_call.estimate_total_calories.complete: 1
+- tool_call.estimate_total_calories.start: 1
+
+Timeline:
+- 2026-04-28T04:45:06.337+00:00 | coordinator.start | {'input': 'I want a weight loss meal plan using rice and chicken'}
+- 2026-04-28T04:46:33.523+00:00 | coordinator.complete | {'input': 'I want a weight loss meal plan using rice and chicken', 'goal': 'weight loss', 'diet_type': 'none', 'target_calories': 0, 'age': 22, 'current_weight': 70, 'steps': ['meal_generation', 'format_output']}
+- 2026-04-28T04:46:33.532+00:00 | meal_generation.start | {'input': {'goal': 'weight loss', 'ingredients': ['rice', 'chicken'], 'diet_type': 'none'}}
+- 2026-04-28T04:49:00.629+00:00 | meal_generation.complete | {'meal_count': 3}
+- 2026-04-28T04:49:00.630+00:00 | format_output.start | {'input': {'meal_count': 3}}
+- 2026-04-28T04:49:00.630+00:00 | tool_call.estimate_total_calories.start | {'meal_count': 3}
+- 2026-04-28T04:49:00.630+00:00 | tool_call.estimate_total_calories.complete | {'result': 0}
+- 2026-04-28T04:51:34.573+00:00 | format_output.branch.target_comparison_skipped | {'input': {'target_calories': 0}}
+- 2026-04-28T04:51:34.583+00:00 | format_output.complete | {'output': {'output_length': 1527}}
+
+Inputs and outputs:
+- user_input: I want a weight loss meal plan using rice and chicken
+- goal: weight loss
+- diet_type: none
+- ingredients: ['rice', 'chicken']
+- avoid_ingredients: []
+- target_calories: 0
+- meals: 3
+- final_output_length: 1527

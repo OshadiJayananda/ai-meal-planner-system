@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+import logging
 from unittest.mock import patch
 
 
@@ -10,6 +11,16 @@ from agents.meal_agent import MealAgent
 
 
 class TestMealAgent(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.meal_agent_logger = logging.getLogger("agents.meal_agent")
+        cls.original_level = cls.meal_agent_logger.level
+        cls.meal_agent_logger.setLevel(logging.CRITICAL)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.meal_agent_logger.setLevel(cls.original_level)
+
     def setUp(self) -> None:
         self.context = {
             "goal": "weight loss",

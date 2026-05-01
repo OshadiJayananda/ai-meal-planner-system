@@ -270,8 +270,9 @@ If you include a snack, add one more object with type "Snack".
 
         try:
             decoded = json.loads(candidate)
-        except json.JSONDecodeError:
-            logger.exception("Failed to parse meal agent JSON output")
+        except json.JSONDecodeError as exc:
+            logger.warning("Failed to parse meal agent JSON output; using fallback meals")
+            logger.debug("Meal agent JSON parse error: %s", exc)
             return []
 
         sanitized = sanitize_meal_list(

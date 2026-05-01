@@ -3,6 +3,7 @@ Database Service for Meal Planner MAS
 Handles session + agent outputs persistence
 """
 
+import ast
 import sqlite3
 from typing import List, Dict, Any
 
@@ -178,3 +179,86 @@ def save_final_output(session_id: int, output: str):
 
     conn.commit()
     conn.close()
+
+
+def _parse_list(value: str | None) -> list:
+    if not value:
+        return []
+
+    try:
+        parsed = ast.literal_eval(value)
+    except (ValueError, SyntaxError):
+        return []
+
+    return parsed if isinstance(parsed, list) else []
+
+
+def list_sessions(limit: int = 20) -> List[Dict[str, Any]]:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            s.id,
+            s.user_input,
+            s.age,
+            s.weight,
+            s.created_at,
+            c.goal,
+            c.diet_type,
+            c.target_calories,
+            n.total_calories
+        FROM sessions s
+        LEFT JOIN coordinator_results c ON c.session_id = s.id
+        LEFT JOIN nutrition_results n ON n.session_id = s.id
+        ORDER BY s.id DESC
+        LIMIT ?
+        """,
+        (limit,)
+    )
+
+    rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def get_session_detail(session_id: int) -> Dict[str, Any] | None:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
+    session = cursor.fetchone()
+    if session is None:
+        conn.close()
+        return None
+
+    cursor.execute("SELECT * FROM coordinator_results WHERE session_id = ?", (session_id,))
+    coordinator = cursor.fetchone()
+
+    cursor.execute("SELECT * FROM meal_results WHERE session_id = ?", (session_id,))
+    meals = [dict(row) for row in cursor.fetchall()]
+
+    cursor.execute("SELECT * FROM nutrition_results WHERE session_id = ?", (session_id,))
+    nutrition = cursor.fetchone()
+
+    cursor.execute("SELECT output FROM final_outputs WHERE session_id = ?", (session_id,))
+    final_output = cursor.fetchone()
+
+    conn.close()
+
+    coordinator_data = dict(coordinator) if coordinator else {}
+    return {
+        "session": dict(session),
+        "coordinator": {
+            **coordinator_data,
+            "ingredients": _parse_list(coordinator_data.get("ingredients")),
+            "avoid_ingredients": _parse_list(coordinator_data.get("avoid_ingredients")),
+            "steps": _parse_list(coordinator_data.get("steps")),
+        },
+        "meals": meals,
+        "nutrition": dict(nutrition) if nutrition else {},
+        "final_output": final_output["output"] if final_output else "",
+    }

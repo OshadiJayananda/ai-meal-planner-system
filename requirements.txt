@@ -1,3 +1,5 @@
 crewai 
 langchain-community 
 ollama
+customtkinter
+pyinstaller

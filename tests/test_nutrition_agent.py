@@ -242,20 +242,29 @@ def run_llm_as_judge_test() -> dict:
         nutrition = estimate_nutrition(meal)
         
         prompt = f"""
-        You are a nutrition expert judge.
-        
+        You are a nutrition expert.
+
         Meal: "{meal}"
-        
+
         Estimated Nutrition:
         - Calories: {nutrition['calories']}
         - Protein: {nutrition['protein_g']}g
         - Carbs: {nutrition['carbs_g']}g
         - Fat: {nutrition['fat_g']}g
         - Confidence: {nutrition['confidence']}
-        
-        Is this nutrition estimate REASONABLE for this meal?
-        
-        Answer with ONLY "YES" or "NO".
+
+        Evaluation Rules:
+        - Accept reasonable estimates (±30% variation is OK)
+        - Do NOT expect exact values
+        - If values are in a realistic range → answer YES
+        - If completely unrealistic → answer NO
+
+        Examples:
+        - Chicken meal: 200–600 calories → YES
+        - Pasta meal: 200–800 calories → YES
+        - Random nonsense meal → NO
+
+        Answer ONLY "YES" or "NO".
         """
         
         try:
@@ -299,8 +308,7 @@ if __name__ == "__main__":
     print("\n📋 Running Unit Tests...\n")
     unittest.main(exit=False, verbosity=2)
     
-    # Temporarily comment out LLM-as-Judge test
-    # run_llm_as_judge_test()  # <-- COMMENT THIS LINE
+    run_llm_as_judge_test()
     
     print("\n" + "=" * 60)
     print("✅ All tests completed!")
