@@ -110,25 +110,33 @@ def _is_nutrition_focused_request(user_input: str) -> bool:
 
 
 def select_workflow_steps(user_input: str, parsed_request: dict) -> list[str]:
-    """Select the workflow steps for the coordinator based on rules and parsed request."""
     user_input = user_input or ""
 
     if _is_minimal_meal_request(user_input):
-        return STEP_CASE_MEAL_ONLY.copy()
+        steps = STEP_CASE_MEAL_AND_FORMAT.copy()
 
-    if _is_nutrition_focused_request(user_input):
-        return STEP_CASE_NUTRITION_AND_FORMAT.copy()
+    elif _is_nutrition_focused_request(user_input):
+        steps = STEP_CASE_NUTRITION_AND_FORMAT.copy()
 
-    target_calories = parsed_request.get("target_calories", 0)
-    calorie_mentioned = isinstance(target_calories, int) and target_calories > 0
-    if not calorie_mentioned:
-        calorie_mentioned = bool(CALORIE_MENTION_PATTERN.search(user_input))
+    else:
+        target_calories = parsed_request.get("target_calories", 0)
+        calorie_mentioned = isinstance(target_calories, int) and target_calories > 0
 
-    if calorie_mentioned:
-        return STEP_CASE_FULL_PIPELINE.copy()
+        if not calorie_mentioned:
+            calorie_mentioned = bool(CALORIE_MENTION_PATTERN.search(user_input))
 
-    llm_steps = _canonicalize_steps(parsed_request.get("steps"))
-    if tuple(llm_steps) in ALLOWED_STEP_COMBINATIONS and llm_steps != STEP_CASE_FULL_PIPELINE:
-        return llm_steps
+        if calorie_mentioned:
+            steps = STEP_CASE_FULL_PIPELINE.copy()
+        else:
+            llm_steps = _canonicalize_steps(parsed_request.get("steps"))
 
-    return STEP_CASE_MEAL_AND_FORMAT.copy()
+            if tuple(llm_steps) in ALLOWED_STEP_COMBINATIONS:
+                steps = llm_steps.copy()
+            else:
+                steps = STEP_CASE_MEAL_AND_FORMAT.copy()
+
+    # ✅ CRITICAL FIX: ALWAYS ensure format_output
+    if "format_output" not in steps:
+        steps.append("format_output")
+
+    return steps
