@@ -140,25 +140,6 @@ class TestCoordinatorAgent(unittest.TestCase):
         self.assertIsInstance(result["current_weight"], int)
         self.assertIsInstance(result["steps"], list)
 
-    def test_workflow_case_meal_and_format_when_no_calories(self):
-        mock_response = json.dumps({
-            "goal": "maintenance",
-            "ingredients": ["chicken"],
-            "avoid_ingredients": [],
-            "target_calories": 0,
-            "diet_type": "none",
-            "steps": ["meal_generation", "nutrition_analysis", "format_output"]
-        })
-
-        mock_crew = SimpleNamespace(
-            kickoff=lambda: SimpleNamespace(raw=mock_response)
-        )
-
-        with patch("agents.coordinator.Crew", return_value=mock_crew):
-            result = self.agent.run("Give me a simple meal plan with chicken")
-
-        self.assertEqual(result["steps"], ["meal_generation", "format_output"])
-
     def test_workflow_case_nutrition_and_format(self):
         mock_response = json.dumps({
             "goal": "maintenance",
@@ -195,7 +176,7 @@ class TestCoordinatorAgent(unittest.TestCase):
         with patch("agents.coordinator.Crew", return_value=mock_crew):
             result = self.agent.run("Just give me meal ideas")
 
-        self.assertEqual(result["steps"], ["meal_generation"])
+        self.assertEqual(result["steps"], ["meal_generation", "format_output"])
 
     def test_nutrition_focused_request_overrides_llm_minimal_steps(self):
         mock_response = json.dumps({

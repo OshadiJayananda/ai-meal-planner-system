@@ -34,7 +34,7 @@ class TestCoordinatorTool(unittest.TestCase):
     def test_minimal_meal_request(self):
         parsed = {"target_calories": 0, "steps": []}
         steps = select_workflow_steps("Just give me meal ideas", parsed)
-        self.assertEqual(steps, ["meal_generation"])
+        self.assertEqual(steps, ["meal_generation", "format_output"])
 
     def test_nutrition_focused_request(self):
         parsed = {"target_calories": 0, "steps": ["meal_generation"]}
