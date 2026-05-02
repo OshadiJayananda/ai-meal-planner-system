@@ -42,7 +42,7 @@ class TestMealAgent(unittest.TestCase):
         """
         agent = MealAgent()
         with patch.object(agent, "_generate_with_crewai", return_value=response):
-            meals = agent.run(self.context)
+            meals = agent.run(self.context, self.context["age"], self.context["current_weight"])
 
         self.assertEqual([meal["type"] for meal in meals], ["Breakfast", "Lunch", "Dinner"])
         self.assertTrue(all("description" in meal for meal in meals))
@@ -60,7 +60,7 @@ class TestMealAgent(unittest.TestCase):
         """
         agent = MealAgent()
         with patch.object(agent, "_generate_with_crewai", return_value=response):
-            meals = agent.run(self.context)
+            meals = agent.run(self.context, self.context["age"], self.context["current_weight"])
 
         self.assertEqual([meal["type"] for meal in meals], ["Breakfast", "Lunch", "Dinner", "Snack"])
 
@@ -74,7 +74,7 @@ class TestMealAgent(unittest.TestCase):
         """
         agent = MealAgent()
         with patch.object(agent, "_generate_with_crewai", return_value=response):
-            meals = agent.run(self.context)
+            meals = agent.run(self.context, self.context["age"], self.context["current_weight"])
 
         combined = " ".join(f"{meal['name']} {meal['description']}" for meal in meals).lower()
         self.assertNotIn("pork", combined)
@@ -97,7 +97,7 @@ class TestMealAgent(unittest.TestCase):
         """
         agent = MealAgent()
         with patch.object(agent, "_generate_with_crewai", return_value=response):
-            meals = agent.run(context)
+            meals = agent.run(context, 0, 0)
 
         combined = " ".join(f"{meal['name']} {meal['description']}" for meal in meals).lower()
         self.assertNotIn("chicken", combined)
@@ -116,7 +116,7 @@ class TestMealAgent(unittest.TestCase):
 
         with patch.object(agent, "_generate_with_crewai", return_value=""):
             with patch.object(agent, "_generate_with_ollama_client", return_value=""):
-                meals = agent.run(context)
+                meals = agent.run(context, 0, 0)
 
         self.assertTrue(all("portion_guidance" in meal for meal in meals[:3]))
         self.assertTrue(any("small plate" in meal.get("limit_note", "").lower() for meal in meals[:3]))
@@ -127,14 +127,14 @@ class TestMealAgent(unittest.TestCase):
 
         with patch.object(agent, "_generate_with_crewai", return_value=""):
             with patch.object(agent, "_generate_with_ollama_client", return_value=""):
-                meals = agent.run(self.context)
+                meals = agent.run(self.context, self.context["age"], self.context["current_weight"])
 
         self.assertTrue(all("Age 24 years, weight 58 kg" in meal.get("portion_guidance", "") for meal in meals[:3]))
 
     def test_malformed_json_uses_fallback(self) -> None:
         agent = MealAgent()
         with patch.object(agent, "_generate_with_crewai", return_value="[invalid json"):
-            meals = agent.run(self.context)
+            meals = agent.run(self.context, self.context["age"], self.context["current_weight"])
 
         self.assertEqual([meal["type"] for meal in meals[:3]], ["Breakfast", "Lunch", "Dinner"])
 
@@ -143,7 +143,7 @@ class TestMealAgent(unittest.TestCase):
 
         with patch.object(agent, "_generate_with_crewai", return_value=""):
             with patch.object(agent, "_generate_with_ollama_client", return_value=""):
-                meals = agent.run(self.context)
+                meals = agent.run(self.context, self.context["age"], self.context["current_weight"])
 
         self.assertEqual([meal["type"] for meal in meals[:3]], ["Breakfast", "Lunch", "Dinner"])
 
